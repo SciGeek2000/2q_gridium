@@ -264,3 +264,288 @@ class TransmonSimple(object):
             raise Exception('Level index is out of bounds.')
         return self.adag().matrix_element(qt.basis(self.nlev, level1).dag(),
                                           qt.basis(self.nlev, level2))
+
+# Introducing a transmon class which has the same form as the other circuit elements
+class Transmon(object):
+    """
+    A class for representing superconducting transmon qubits. Follows same construction 
+    Architecture as the other qubit classes
+    """
+
+    def __init__(self, E_C, E_J,
+                 n_g=0, nlev=5, nlev_lc=50, units='GHz'):
+        # Most of these attributes are defined later as properties.
+        self.E_C = E_C  # The charging energy.
+        self.E_J = E_J # The Josephson Energy
+        self.n_g = n_g # Gate charge (parity of capacitor)
+        self.nlev_lc = nlev_lc  # The number of states before diagonalization.
+        self.units = units
+        self.type = 'qubit'
+
+    def __str__(self):
+        s = ('A transmon qubit with E_C = {} '.format(self.E_C) + self.units
+             + ', E_J = {} '.format(self.E_J) + self.units)
+        return s
+
+    @property
+    def E_C(self):
+        return self._E_C
+
+    @E_C.setter
+    def E_C(self, value):
+        if value <= 0:
+            raise Exception('Charging energy must be positive')
+        self._E_C = value
+        self._reset_cache()
+
+    @property
+    def E_J(self):
+        return self._E_J
+
+    @E_J.setter
+    def E_J(self, value):
+        if value <= 0:
+            print('*** Warning: Josephson energy is not positive. ***')
+        self._E_J = value
+        self._reset_cache()
+
+    @property
+    def nlev_lc(self):
+        return self._nlev_lc
+
+    @nlev_lc.setter
+    def nlev_lc(self, value):
+        if value <= 0:
+            raise Exception('The number of levels must be positive.')
+        self._nlev_lc = value
+        self._reset_cache()
+
+    def _reset_cache(self):
+        """Reset cached data that have already been calculated."""
+        self._eigvals = None
+        self._eigvecs = None
+
+    def _b_lc(self):
+        """Annihilation operator in the LC basis."""
+        return qt.destroy(self.nlev_lc)
+
+    def _phi_lc(self):
+        """Flux (phase) operator in the LC basis."""
+        return (2 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc) #TODO: Check coefficients!
+
+    def _n_lc(self):
+        """Charge operator in the LC basis."""
+        return (self.E_L / (2 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc) #TODO: Check coefficients!
+
+    def _hamiltonian_lc(self):
+        """Qubit Hamiltonian in the LC basis."""
+        E_C = self.E_C
+        E_J = self.E_J
+        n = self._n_lc()
+        phi = self._phi_lc()
+        return 4*E_C*(n-self.n_g)**2 - 0.5*E_J*phi.cosm()  #TODO: Check coefficients!
+
+    def _eigenspectrum_lc(self, eigvecs_flag=False):
+        """Eigenenergies and eigenstates in the LC basis."""
+        if not eigvecs_flag:
+            if self._eigvals is None:
+                H_lc = self._hamiltonian_lc()
+                self._eigvals = H_lc.eigenenergies()
+            return self._eigvals
+        else:
+            if self._eigvals is None or self._eigvecs is None:
+                H_lc = self._hamiltonian_lc()
+                self._eigvals, self._eigvecs = H_lc.eigenstates()
+            return self._eigvals, self._eigvecs
+
+    def levels(self, nlev=None, eigvecs = False):
+        """Eigenenergies of the qubit.
+
+        Parameters
+        ----------
+        nlev : int, optional
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        numpy.ndarray
+            Array of eigenvalues.
+        """
+        if nlev is None:
+            nlev = self.nlev
+        if nlev < 1 or nlev > self.nlev_lc:
+            raise Exception('`nlev` is out of bounds.')
+        if eigvecs:
+            return_tuple = self._eigenspectrum_lc(eigvecs_flag=True)
+            return return_tuple[0][:nlev], return_tuple[1][:nlev]
+        else:
+            return self._eigenspectrum_lc()[:nlev]
+
+    def level(self, level_index, eigvecs=False):
+        """Energy of a single level of the qubit.
+
+        Parameters
+        ----------
+        level_ind : int
+            The qubit level starting from zero.
+
+        Returns
+        -------
+        float
+            Energy of the level.
+        """
+        if level_index < 0 or level_index >= self.nlev_lc:
+            raise Exception('The level is out of bounds')
+        if eigvecs:
+            return_tuple = self.levels(eigvecs = True)
+            return return_tuple[0][level_index], return_tuple[1][level_index]
+        else:
+            return self.levels()[level_index]
+
+    def eigvec(self, level_index):
+        """A shortcut to get an eigenvector via level(eigvec=True).
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            Eigenvector.
+        """
+        _, evec = self.level(level_index=level_index, eigvecs=True)
+        return evec
+
+    def freq(self, level1, level2):
+        """Transition energy/frequency between two levels of the qubit.
+
+        Parameters
+        ----------
+        level1, level2 : int
+            The qubit levels.
+
+        Returns
+        -------
+        float
+            Transition energy/frequency between `level1` and `level2` defined
+            as the difference of energies. Positive if `level1` < `level2`.
+        """
+        return self.level(level2) - self.level(level1)
+
+    def H(self, nlev=None):
+        """Qubit Hamiltonian in its eigenbasis.
+
+        Parameters
+        ----------
+        nlev : int, optional
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            The Hamiltonian operator.
+        """
+        return qt.Qobj(np.diag(self.levels(nlev=nlev)))
+
+    def eye(self, nlev=None):
+        """Identity operator in the qubit eigenbasis.
+
+        Parameters
+        ----------
+        nlev : int, optional
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            The identity operator.
+        """
+        if nlev is None:
+            nlev = self.nlev
+        if nlev < 1 or nlev > self.nlev_lc:
+            raise Exception('`nlev` is out of bounds.')
+        return qt.qeye(nlev)
+
+    def phi(self, nlev=None):
+        """Generalized-flux operator in the qubit eigenbasis.
+
+        Parameters
+        ----------
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            The flux operator.
+        """
+        if nlev is None:
+            nlev = self.nlev
+        if nlev < 1 or nlev > self.nlev_lc:
+            raise Exception('`nlev` is out of bounds.')
+        _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
+        phi_op = np.zeros((nlev, nlev), dtype=complex)
+        for ind1 in range(nlev):
+            for ind2 in range(nlev):
+                phi_op[ind1, ind2] = self._phi_lc().matrix_element(
+                    evecs[ind1].dag(), evecs[ind2])
+        return qt.Qobj(phi_op)
+
+    def n(self, nlev=None):
+        """Charge operator in the qubit eigenbasis.
+
+        Parameters
+        ----------
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            The charge operator.
+        """
+        if nlev is None:
+            nlev = self.nlev
+        if nlev < 1 or nlev > self.nlev_lc:
+            raise Exception('`nlev` is out of bounds.')
+        _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
+        n_op = np.zeros((nlev, nlev), dtype=complex)
+        for ind1 in range(nlev):
+            for ind2 in range(nlev):
+                n_op[ind1, ind2] = self._n_lc().matrix_element(
+                    evecs[ind1].dag(), evecs[ind2])
+        return qt.Qobj(n_op)
+
+    def phi_ij(self, level1, level2):
+        """The flux matrix element between two eigenstates.
+
+        Parameters
+        ----------
+        level1, level2 : int
+            The qubit levels.
+
+        Returns
+        -------
+        complex
+            The matrix element of the flux operator.
+        """
+        if (level1 < 0 or level1 > self.nlev_lc
+                or level2 < 0 or level2 > self.nlev_lc):
+            raise Exception('Level index is out of bounds.')
+        _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
+        return self._phi_lc().matrix_element(
+            evecs[level1].dag(), evecs[level2])
+
+    def n_ij(self, level1, level2):
+        """The charge matrix element between two eigenstates.
+
+        Parameters
+        ----------
+        level1, level2 : int
+            The qubit levels.
+
+        Returns
+        -------
+        complex
+            The matrix element of the charge operator.
+        """
+        if (level1 < 0 or level1 > self.nlev_lc
+                or level2 < 0 or level2 > self.nlev_lc):
+            raise Exception('Level index is out of bounds.')
+        _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
+        return self._n_lc().matrix_element(evecs[level1].dag(), evecs[level2])
