@@ -22,8 +22,13 @@ class TransmonSimple(object):
         self.omega_d = omega_d  # Drive frequency for rotating frame stuff.
         self.alpha = alpha  # The qubit anharmonicity (omega_12 - omega_01).
         self.nlev = nlev  # The number of eigenstates in the qubit.
+        self.nlev_lc = self.nlev
         self.units = units
         self.type = 'qubit'
+
+        self.E_C = -self.alpha
+        self.E_J = (self.omega_q*self.E_C)**2/(8*self.E_C)
+        # TODO: add n and phi properties from creation and anhilation operators for compatibility
 
     def __str__(self):
         s = ('A transmon qubit with omega_q = {} '.format(self.omega_q) + self.units
@@ -66,6 +71,15 @@ class TransmonSimple(object):
         self._eigvals = None
         self._eigvecs = None
 
+    def _phi_lc(self):
+        """Flux (phase) operator in the LC basis."""
+        return (2 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc)
+
+    def _n_lc(self):
+        """Charge operator in the LC basis."""
+        return (self.E_L / (2 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc)
+
+
     def a(self):
         """Annihilation operator."""
         return qt.destroy(self.nlev)
@@ -101,6 +115,11 @@ class TransmonSimple(object):
                 H = self.H()
                 self._eigvals, self._eigvecs = H.eigenstates()
             return self._eigvals, self._eigvecs
+
+    def _eigenspectrum_lc(self):
+        pass
+
+    _eigenspectrum_lc = _eigenspectrum
 
     def levels(self, nlev=None):
         """Eigenenergies of the qubit.
@@ -163,6 +182,54 @@ class TransmonSimple(object):
             The identity operator.
         """
         return qt.qeye(self.nlev)
+
+    def phi(self, nlev=None):
+        """Generalized-flux operator in the qubit eigenbasis.
+
+        Parameters
+        ----------
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            The flux operator.
+        """
+        if nlev is None:
+            nlev = self.nlev
+        if nlev < 1 or nlev > self.nlev_lc:
+            raise Exception('`nlev` is out of bounds.')
+        _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
+        phi_op = np.zeros((nlev, nlev), dtype=complex)
+        for ind1 in range(nlev):
+            for ind2 in range(nlev):
+                phi_op[ind1, ind2] = self._phi_lc().matrix_element(
+                    evecs[ind1].dag(), evecs[ind2])
+        return qt.Qobj(phi_op)
+
+    def n(self, nlev=None):
+        """Charge operator in the qubit eigenbasis.
+
+        Parameters
+        ----------
+            The number of qubit eigenstates if different from `self.nlev`.
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            The charge operator.
+        """
+        if nlev is None:
+            nlev = self.nlev
+        if nlev < 1 or nlev > self.nlev_lc:
+            raise Exception('`nlev` is out of bounds.')
+        _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
+        n_op = np.zeros((nlev, nlev), dtype=complex)
+        for ind1 in range(nlev):
+            for ind2 in range(nlev):
+                n_op[ind1, ind2] = self._n_lc().matrix_element(
+                    evecs[ind1].dag(), evecs[ind2])
+        return qt.Qobj(n_op)
 
     def a_ij(self, level1, level2):
         """The annihilation operator matrix element between two eigenstates.
