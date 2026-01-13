@@ -22,7 +22,7 @@ class TransmonSimple(object):
         self.omega_d = omega_d  # Drive frequency for rotating frame stuff.
         self.alpha = alpha  # The qubit anharmonicity (omega_12 - omega_01).
         self.nlev = nlev  # The number of eigenstates in the qubit.
-        self.nlev_lc = self.nlev
+        self.nlev_lc = self.nlev_lc
         self.units = units
         self.type = 'qubit'
 
@@ -278,7 +278,8 @@ class Transmon(object):
         self.E_C = E_C  # The charging energy.
         self.E_J = E_J # The Josephson Energy
         self.n_g = n_g # Gate charge (parity of capacitor)
-        self.nlev_lc = nlev_lc  # The number of states before diagonalization.
+        self.nlev = nlev 
+        self.nlev_lc = nlev_lc
         self.units = units
         self.type = 'qubit'
 
@@ -310,14 +311,14 @@ class Transmon(object):
         self._reset_cache()
 
     @property
-    def nlev_lc(self):
-        return self._nlev_lc
+    def nlev(self):
+        return self._nlev
 
-    @nlev_lc.setter
-    def nlev_lc(self, value):
+    @nlev.setter
+    def nlev(self, value):
         if value <= 0:
             raise Exception('The number of levels must be positive.')
-        self._nlev_lc = value
+        self._nlev = value
         self._reset_cache()
 
     def _reset_cache(self):
@@ -327,15 +328,15 @@ class Transmon(object):
 
     def _b_lc(self):
         """Annihilation operator in the LC basis."""
-        return qt.destroy(self.nlev_lc)
+        return qt.destroy(self.nlev)
 
     def _phi_lc(self):
         """Flux (phase) operator in the LC basis."""
-        return (2 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc) #TODO: Check coefficients!
+        return (2 * self.E_C / (self.E_J*2)) ** (0.25) * 2**(0.5) * qt.position(self.nlev_lc) #E_J ~ 1/2*E_L so coefficients get augmented
 
     def _n_lc(self):
         """Charge operator in the LC basis."""
-        return (self.E_L / (2 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc) #TODO: Check coefficients!
+        return ((self.E_J*2) / (32 * self.E_C)) ** (0.25) * 2**(0.5) * qt.momentum(self.nlev_lc) #E_J ~ 1/2*E_L so coefficients get augmented
 
     def _hamiltonian_lc(self):
         """Qubit Hamiltonian in the LC basis."""
@@ -343,7 +344,7 @@ class Transmon(object):
         E_J = self.E_J
         n = self._n_lc()
         phi = self._phi_lc()
-        return 4*E_C*(n-self.n_g)**2 - 0.5*E_J*phi.cosm()  #TODO: Check coefficients!
+        return 4*E_C*(n-self.n_g)**2 - E_J*phi.cosm()  #TODO: Check coefficients!
 
     def _eigenspectrum_lc(self, eigvecs_flag=False):
         """Eigenenergies and eigenstates in the LC basis."""
@@ -373,7 +374,7 @@ class Transmon(object):
         """
         if nlev is None:
             nlev = self.nlev
-        if nlev < 1 or nlev > self.nlev_lc:
+        if nlev < 1 or nlev > self.nlev:
             raise Exception('`nlev` is out of bounds.')
         if eigvecs:
             return_tuple = self._eigenspectrum_lc(eigvecs_flag=True)
@@ -394,7 +395,7 @@ class Transmon(object):
         float
             Energy of the level.
         """
-        if level_index < 0 or level_index >= self.nlev_lc:
+        if level_index < 0 or level_index >= self.nlev:
             raise Exception('The level is out of bounds')
         if eigvecs:
             return_tuple = self.levels(eigvecs = True)
@@ -459,7 +460,7 @@ class Transmon(object):
         """
         if nlev is None:
             nlev = self.nlev
-        if nlev < 1 or nlev > self.nlev_lc:
+        if nlev < 1 or nlev > self.nlev:
             raise Exception('`nlev` is out of bounds.')
         return qt.qeye(nlev)
 
@@ -477,7 +478,7 @@ class Transmon(object):
         """
         if nlev is None:
             nlev = self.nlev
-        if nlev < 1 or nlev > self.nlev_lc:
+        if nlev < 1 or nlev > self.nlev:
             raise Exception('`nlev` is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         phi_op = np.zeros((nlev, nlev), dtype=complex)
@@ -501,7 +502,7 @@ class Transmon(object):
         """
         if nlev is None:
             nlev = self.nlev
-        if nlev < 1 or nlev > self.nlev_lc:
+        if nlev < 1 or nlev > self.nlev:
             raise Exception('`nlev` is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         n_op = np.zeros((nlev, nlev), dtype=complex)
@@ -524,8 +525,8 @@ class Transmon(object):
         complex
             The matrix element of the flux operator.
         """
-        if (level1 < 0 or level1 > self.nlev_lc
-                or level2 < 0 or level2 > self.nlev_lc):
+        if (level1 < 0 or level1 > self.nlev
+                or level2 < 0 or level2 > self.nlev):
             raise Exception('Level index is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         return self._phi_lc().matrix_element(
@@ -544,8 +545,8 @@ class Transmon(object):
         complex
             The matrix element of the charge operator.
         """
-        if (level1 < 0 or level1 > self.nlev_lc
-                or level2 < 0 or level2 > self.nlev_lc):
+        if (level1 < 0 or level1 > self.nlev
+                or level2 < 0 or level2 > self.nlev):
             raise Exception('Level index is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         return self._n_lc().matrix_element(evecs[level1].dag(), evecs[level2])
