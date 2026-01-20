@@ -168,7 +168,8 @@ class IdealGridium(object):
         phi = self._phi_lc()
         n = self._n_lc()
         net_phi = phi + self.phi_ext
-        return 4*E_C*(n+ng)**2 + 0.5*E_L*net_phi**2 - E_s*self.cos_2pi_n() + E_2J*self.cos_2phi()
+        return E_C*(n+ng)**2 + 0.5*E_L*net_phi**2 - E_s*self.cos_2pi_n() + E_2J*self.cos_2phi() # Eq 2 from https://arxiv.org/pdf/2509.14656 for coefficients
+    
 
     def _eigenspectrum_lc(self, eigvecs_flag=False):
         """Eigenenergies and eigenstates in the LC basis."""
@@ -374,3 +375,8 @@ class IdealGridium(object):
             raise Exception('Level index is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         return self._n_lc().matrix_element(evecs[level1].dag(), evecs[level2])
+
+    # TODO: Implement eigenvector plotting
+    # TODO: Implement spectrum plotting
+    # TODO: Implement global plotting standard
+    # TODO: Implement .gnd_transitions() method
