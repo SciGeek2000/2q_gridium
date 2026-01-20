@@ -1,42 +1,63 @@
-# Author: Thomas Ersevim
-###########################################################################
+# Author: Thomas Ersevim, 2026
+###################################################################################################
 
-"""The Gridium class for representing superconducting gridium qubits.
-"""
+'''Establishes the IdealGridium class for modeling the gridium qubit and for use with qchard'''
+# NOTE: This gridium is the simple 1 mode gridium toy model.
 
-# NOTE: This gridium is the simple 3 mode gridium toy model.
-
-# Should ultimately have the same number of different gridium objects as there are approximations
-# elsewhere (like in the gridium folder)
-
-# For example:
-# 3 Mode (Ideal cos(2phi) with ideal phase slip with an inductance and capacitor)
-# 4 Mode
-# Toy
-
-__all__ = ['Gridium']
+__all__ = ['IdealGridium', 'soft_IdealGridium_params', 'hard_IdealGridium_params', 'std_IdealGridium_sim_params']
 
 import numpy as np
 import qutip as qt
 
-class Gridium(object):
-    """A class for representing superconducting gridium qubits."""
+# Defines intrinsic circuit parameters for later ease of use
+soft_IdealGridium_params = {
+    'E_L': 0.5,
+    'E_C': 0.5,
+    'E_s': 4,
+    'E_2J': 12,
+}
+hard_IdealGridium_params = {
+    'E_L': 0.1,
+    'E_C': 0.1,
+    'E_s': 4,
+    'E_2J': 12,
+}
+
+# Defines standard operating and simulating conditions of circuit for later ease of use
+std_IdealGridium_sim_params = {
+    'ng': 0,
+    'phi_ext': np.pi,
+    'nlev': 6,
+    'lc': 80,
+    'units': 'GHz'
+}
+
+class IdealGridium(object):
+    """A class for representing an ideal, floating, superconducting gridium qubit.
+
+    Parameter regieme of interest: E_2J, E_s >> E_C, E_L
+
+    This is the "Ideal" case, where E_2J and E_s are just taken to be fundamental circuit elements.
+    In reality, these are effective circuit elements. This is explored in the ExpGridium class.
+    """
 
     def __init__(self, E_L, E_C, E_s, E_2J,
-                 phi_ext=np.pi, nlev=5, nlev_lc=50, units='GHz'):
+                 ng, phi_ext=np.pi,
+                 nlev=5, nlev_lc=50, units='GHz'):
         # Most of these attributes are defined later as properties.
         self.E_L = E_L  # The inductive energy.
         self.E_C = E_C  # The charging energy.
         self.E_s = E_s # The (ideal) phase slip energy
         self.E_2J = E_2J  # The Josephson energy.
-        self.phi_ext = phi_ext
+        self.ng = ng # The offset gate charge   
+        self.phi_ext = phi_ext # The amount of threaded flux
         self.nlev = nlev  # The number of eigenstates in the qubit.
-        self.nlev_lc = nlev_lc  # The number of states before diagonalization.
+        self.nlev_lc = nlev_lc  # The number of coherent states to use in the diagonalization
         self.units = units
         self.type = 'qubit'
 
     def __str__(self):
-        s = ('A 3-mode gridium qubit with E_L = {} '.format(self.E_L) + self.units
+        s = ('A 1-mode gridium qubit with E_L = {} '.format(self.E_L) + self.units
              + ', E_C = {} '.format(self.E_C) + self.units
              + ', E_s = {} '.format(self.E_s) + self.units
              + ', and E_2J = {} '.format(self.E_2J) + self.units
@@ -119,11 +140,23 @@ class Gridium(object):
 
     def _phi_lc(self):
         """Flux (phase) operator in the LC basis."""
-        return (2 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc)
-
+        return (8 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc) # Just a start for the bare resonator mode which is not close to diagonal here
+    
     def _n_lc(self):
         """Charge operator in the LC basis."""
-        return (self.E_L / (2 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc)
+        return (self.E_L / (8 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc) # Just a start for the bare resonator mode which is not close to diagonal here
+
+    def cos_2pi_n(self):
+        """A cos(2*pi*n) operator for use primarily in the hamiltonian"""
+        n = self._n_lc()
+        cos_2pi_n = 0.5*((-2j*np.pi*n).expm() + (2j*np.pi*n).expm()) # Exp form of cos(2pi*n)
+        return cos_2pi_n
+
+    def cos_2phi(self):
+        """A cos(2phi) operator for use primarily in the hamiltonian"""
+        phi = self._phi_lc()
+        cos_2phi = phi.cosm()*phi.cosm() - phi.sinm()*phi.sinm() # Double angle formula
+        return cos_2phi
 
     def _hamiltonian_lc(self):
         """Qubit Hamiltonian in the LC basis."""
@@ -131,15 +164,11 @@ class Gridium(object):
         E_L = self.E_L
         E_s = self.E_s
         E_2J = self.E_2J
+        ng = self.ng
         phi = self._phi_lc()
         n = self._n_lc()
         net_phi = phi + self.phi_ext
-
-        cos_2pi_n = 0.5*(np.exp(-2j*np.pi)*n.expm() + np.exp(2j*np.pi)*n.expm())
-        cos_2phi = 0.5*(np.exp(-2j)*phi.expm() + np.exp(2j)*phi.expm())
-        return E_C * n ** 2 + 0.5 * E_L * net_phi ** 2 - E_s * cos_2pi_n - E_2J * cos_2phi # TODO: Check to make sure coefficients are right here!
-        # return E_C * n ** 2 + 0.5 * E_L * net_phi ** 2 - E_s * np.cos(2 * np.pi * n) - E_2J * np.cos(2 * phi) # TODO: Check to make sure coefficients are right here!
-        # Will also have to do this as a matrix exponential
+        return 4*E_C*(n+ng)**2 + 0.5*E_L*net_phi**2 - E_s*self.cos_2pi_n() + E_2J*self.cos_2phi()
 
     def _eigenspectrum_lc(self, eigvecs_flag=False):
         """Eigenenergies and eigenstates in the LC basis."""
