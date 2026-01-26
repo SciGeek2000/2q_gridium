@@ -1,0 +1,7 @@
+Living document to list what
+
+TODO: Implement a packaging system for ease of deployment (maybe even docker?)
+TODO: Update the current compatible versions (in particular of python and scipy)
+
+Ideally:
+TODO: All plots should have some metadata which corresponds to the software version with which they were produced
