@@ -28,7 +28,7 @@ std_IdealGridium_sim_params = {
     'ng': 0,
     'phi_ext': np.pi,
     'nlev': 6,
-    'lc': 80,
+    'nlev_lc': 500,
     'units': 'GHz'
 }
 
@@ -110,6 +110,15 @@ class IdealGridium(object):
         self._reset_cache()
 
     @property
+    def ng(self):
+        return self._ng
+
+    @ng.setter
+    def ng(self, value):
+        self._ng = value
+        self._reset_cache()
+
+    @property
     def phi_ext(self):
         return self._phi_ext
 
@@ -119,13 +128,24 @@ class IdealGridium(object):
         self._reset_cache()
 
     @property
+    def nlev(self):
+        return self._nlev
+
+    @nlev.setter
+    def nlev(self, value):
+        if value <= 0:
+            raise Exception('The number of real levels must be positive.')
+        self._nlev = value
+        self._reset_cache()
+
+    @property
     def nlev_lc(self):
         return self._nlev_lc
 
     @nlev_lc.setter
     def nlev_lc(self, value):
         if value <= 0:
-            raise Exception('The number of levels must be positive.')
+            raise Exception('The number of lc levels must be positive.')
         self._nlev_lc = value
         self._reset_cache()
 
@@ -376,7 +396,16 @@ class IdealGridium(object):
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         return self._n_lc().matrix_element(evecs[level1].dag(), evecs[level2])
 
+    def transition_energies(self, lower_level=0, nlev=None) -> np.ndarray:
+        '''From provided lower level, finds the zeroed transition energy to the upper levels'''
+        if nlev is None:
+            nlev = self.nlev
+        eigvals = self._eigenspectrum_lc()[lower_level:nlev]
+        transitions = eigvals - eigvals[0]
+        return transitions
+
+    
+
     # TODO: Implement eigenvector plotting
     # TODO: Implement spectrum plotting
     # TODO: Implement global plotting standard
-    # TODO: Implement .gnd_transitions() method
