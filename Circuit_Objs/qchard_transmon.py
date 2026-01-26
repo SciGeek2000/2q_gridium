@@ -1,16 +1,16 @@
 # This file is part of QHard: quantum hardware modelling.
 #
 # Author: Konstantin Nesterov, 2017 and later.
+# Author: Thomas Ersevim, 2026
 ###########################################################################
 """Classes for representing transmon qubits.
 """
 
-__all__ = ['TransmonSimple']
+__all__ = ['TransmonSimple', 'Transmon', 'transmon_creation_from_01']
 
 import numpy as np
 
 import qutip as qt
-
 
 class TransmonSimple(object):
     """A class for representing transmons based on Duffing oscillator
@@ -25,10 +25,8 @@ class TransmonSimple(object):
         self.nlev_lc = self.nlev_lc
         self.units = units
         self.type = 'qubit'
-
         self.E_C = -self.alpha
         self.E_J = (self.omega_q*self.E_C)**2/(8*self.E_C)
-        # TODO: add n and phi properties from creation and anhilation operators for compatibility
 
     def __str__(self):
         s = ('A transmon qubit with omega_q = {} '.format(self.omega_q) + self.units
@@ -311,14 +309,34 @@ class Transmon(object):
         self._reset_cache()
 
     @property
+    def ng(self):
+        return self._ng
+
+    @ng.setter
+    def ng(self, value):
+        self._ng = value
+        self._reset_cache()
+
+    @property
     def nlev(self):
         return self._nlev
 
     @nlev.setter
     def nlev(self, value):
         if value <= 0:
-            raise Exception('The number of levels must be positive.')
+            raise Exception('The number of real levels must be positive.')
         self._nlev = value
+        self._reset_cache()
+
+    @property
+    def nlev_lc(self):
+        return self._nlev_lc
+
+    @nlev_lc.setter
+    def nlev_lc(self, value):
+        if value <= 0:
+            raise Exception('The number of lc levels must be positive.')
+        self._nlev_lc = value
         self._reset_cache()
 
     def _reset_cache(self):
@@ -344,7 +362,7 @@ class Transmon(object):
         E_J = self.E_J
         n = self._n_lc()
         phi = self._phi_lc()
-        return 4*E_C*(n-self.n_g)**2 - E_J*phi.cosm()  #TODO: Check coefficients!
+        return 4*E_C*(n-self.n_g)**2 - E_J*phi.cosm()
 
     def _eigenspectrum_lc(self, eigvecs_flag=False):
         """Eigenenergies and eigenstates in the LC basis."""
@@ -550,3 +568,24 @@ class Transmon(object):
             raise Exception('Level index is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         return self._n_lc().matrix_element(evecs[level1].dag(), evecs[level2])
+
+    def transition_energies(self, lower_level=0, nlev=None) -> np.ndarray:
+        '''From provided lower level, finds the zeroed transition energy to the upper levels'''
+        if nlev is None:
+            nlev = self.nlev
+        eigvals = self._eigenspectrum_lc()[lower_level:nlev]
+        transitions = eigvals - eigvals[0]
+        return transitions
+
+# 6.107e9 0-3 transition
+def transmon_creation_from_01(linear_freq, EJ_EC_ratio=50):
+    '''Creates a transmon with a 01 splitting of the given frequency given also a EJ/EC ratio'''
+    h = 1
+    E_C = linear_freq*h/(np.sqrt(8*EJ_EC_ratio)-1)
+    E_J = EJ_EC_ratio*E_C
+    return Transmon(E_C=E_C, E_J=E_J)
+
+
+    # TODO: Implement eigenvector plotting
+    # TODO: Implement spectrum plotting
+    # TODO: Implement some clever mapping to make the alphas compact (like maybe just a periodic boundary condition on a n*2pi diameter sphere in alpha space or something
