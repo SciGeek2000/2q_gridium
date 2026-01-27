@@ -27,7 +27,7 @@ hard_IdealGridium_params = {
 std_IdealGridium_sim_params = {
     'ng': 0,
     'phi_ext': np.pi,
-    'nlev': 6,
+    'nlev': 5,
     'nlev_lc': 500,
     'units': 'GHz'
 }
