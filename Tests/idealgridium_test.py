@@ -67,7 +67,7 @@ def test_phi_ext_spectrum(tested_gridium, plotting=False):
 @pytest.mark.parametrize('tested_gridium', [soft_IdealGridium, hard_IdealGridium]) # TODO: could turn this into an actual test. perhaps like that degeneracies are degeneracies or something.
 def test_ng_spectrum(tested_gridium):
     '''Tests ng dispersion for agreement with Dat's previous spectrum results'''
-    ngs = np.linspace(0, 1, 21) #Is symmetric about 0 with periodicity of 1, so only doing this range
+    ngs = np.linspace(0, 1, 41) #Is symmetric about 0 with periodicity of 1, so only doing this range
     spectrum = sweep_param_spectrum(ngs, 'ng', tested_gridium)
     zeros = tested_gridium.transition_energies()
     zeroed_spectrum = (spectrum-zeros)[:,1:]
@@ -76,6 +76,7 @@ def test_ng_spectrum(tested_gridium):
     plt.xlabel(r'$n_g$')
     plt.ylabel(r'Transition Energy ({}/h)'.format(tested_gridium.units))
     plt.legend()
+    plt.tight_layout()
     plt.show()
 
 @pytest.mark.parametrize('tested_gridium', [soft_IdealGridium, hard_IdealGridium])
@@ -98,8 +99,6 @@ def test_convergence(tested_gridium, plotting=False):
         twice_lc_transitions = copied_gridium.transition_energies(nlev=nlev)[1:]
         pct_error = (default_lc_transitions-twice_lc_transitions)/np.max(np.abs(twice_lc_transitions))
         worst_error = np.max(np.abs(pct_error)) 
-        print(pct_error)
-        print(worst_error)
         assert worst_error < error_threshold # For testing, the assertion is that the precent error, scaled to the largest transition (to get around zeros) should be < error_threshold
 
     if plotting == True: # To visually ensure that the convergence is good and stable.
@@ -110,14 +109,39 @@ def test_convergence(tested_gridium, plotting=False):
             copied_gridium.nlev_lc = nlev_lc
             convergence_array[i,:] = copied_gridium.transition_energies(nlev=nlev)
         for i in range(nlev):
-            plt.plot(nlevs_lc, convergence_array[:,i])
+            plt.plot(nlevs_lc, convergence_array[:,i], label=r'0$\rightarrow$' + str(i+1))
+        plt.xlabel('H.O. Basis Cutoff Dimentionality')
+        plt.ylabel(r'Transition Energy ({}/h)'.format(tested_gridium.units))
+        plt.legend()
+        plt.tight_layout()
         plt.show()
         return
 
 # TODO: Implement eigenvector plots -- will help with understanding.
-# TODO: Saving figures with version metadata
 # TODO: Move most of this stuff to the object itself for later use.
 
-# test_phi_ext_spectrum()
-# test_ng_spectrum(hard_IdealGridium)
-# test_convergence(plotting=False)
+'''
+phi_matrix_elements = np.conj(states.T)@system['phi_ope']@states
+n_matrix_elements = np.conj(states.T)@system['n_ope']@states
+
+plt.figure(figsize = [2,2])
+level_max=4
+matrix = np.abs(phi_matrix_elements[0:level_max,0:level_max])
+plt.rcParams.update({'font.size': 6})
+# Plot the matrix cmap = 'viridis'
+plt.imshow(matrix)
+# Add text annotations for each cell
+for i in range(matrix.shape[0]):
+    for j in range(matrix.shape[1]):
+        plt.text(j, i, f'{matrix[i, j]:.2f}', ha='center', va='center', color='white')
+plt.yticks(range(matrix.shape[0]))
+plt.colorbar(shrink=0.8)  # Add a color bar
+plt.title(r'$| \langle j  | \hat \phi | k \rangle |$')
+plt.xlabel('eigenstates')
+plt.ylabel('eigenstates')
+plt.show()
+'''
+
+# test_phi_ext_spectrum(hard_IdealGridium, plotting=True)
+# test_ng_spectrum(soft_IdealGridium)
+# test_convergence(plotting=True, tested_gridium=soft_IdealGridium)

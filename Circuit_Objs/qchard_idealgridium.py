@@ -43,8 +43,8 @@ class IdealGridium(object):
     """
 
     def __init__(self, E_L, E_C, E_s, E_2J,
-                 ng, phi_ext=np.pi,
-                 nlev=5, nlev_lc=50, units='GHz'):
+                 ng, nlev, nlev_lc,
+                 phi_ext=np.pi, units='GHz'):
         # Most of these attributes are defined later as properties.
         self.E_L = E_L  # The inductive energy.
         self.E_C = E_C  # The charging energy.
