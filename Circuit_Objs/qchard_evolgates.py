@@ -413,7 +413,7 @@ def evolution_operator_microwave(
 
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate]]
     U_t = qt.propagator(H, t_points, [], args=kwargs,
-                        options={'nsteps': 1000}) # NOTE: Very relevant for convergence/accuracy!
+                        options={'nsteps': 10000}) # NOTE: Very relevant for convergence/accuracy!
     
     U_t = np.asarray(U_t)
     return U_t
@@ -681,7 +681,7 @@ def fidelity_twoq_general(U_ideal, U_real, comp_space=None):
         U_real = P * U_real * P
     op1 = U_real.dag() * U_real
     op2 = U_real * U_ideal.dag()
-    return (op1.tr() + (abs(op2.tr())) ** 2) / 20.0
+    return (op1.tr() + (abs(op2.tr())) ** 2) / 20.0 # TODO: What is this divide by 20 (!?)
 
 def fidelity_singleq_general(U_ideal, U_real, comp_space=None):
     """A general expression for fidelity of a single-qubit gate.
