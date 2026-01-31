@@ -198,6 +198,12 @@ class ExpGridium(object):
         self._nlev_lc = value
         self._reset_cache()
 
+    def _reset_cache(self):
+        '''Resets cached data that has already been calculated.'''
+        self._eigvals = None
+        self._eigvecs = None
+
+
 ##### Copied from IdealGridium
 '''
     def _reset_cache(self):
