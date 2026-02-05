@@ -8,6 +8,17 @@ __all__ = ['Fluxonium']
 import numpy as np
 import qutip as qt
 
+fluxonium_params = {
+    'E_L': 0.5,
+    'E_C': 1.0,
+    'E_J': 8.0,
+}
+
+std_fluxonium_sim_params = {
+    'phi_ext': np.pi,
+    'nlev': 5,
+    'nlev_lc': 200,
+}
 
 class Fluxonium(object):
     """A class for representing superconducting fluxonium qubits."""
@@ -18,10 +29,9 @@ class Fluxonium(object):
         self.E_L = E_L  # The inductive energy.
         self.E_C = E_C  # The charging energy.
         self.E_J = E_J  # The Josephson energy.
-        # The externally induced phase shift [-E_J cos(phi - phi_ext)].
-        self.phi_ext = phi_ext
-        self.nlev = nlev  # The number of eigenstates in the qubit.
+        self.phi_ext = phi_ext # Magnetic flux phase accumulation
         self.nlev_lc = nlev_lc  # The number of states before diagonalization.
+        self.nlev = nlev  # The number of eigenstates in the qubit.
         self.units = units
         self.type = 'qubit'
 
@@ -86,6 +96,17 @@ class Fluxonium(object):
         self._nlev_lc = value
         self._reset_cache()
 
+    @property
+    def nlev(self):
+        return self._nlev
+
+    @nlev.setter
+    def nlev(self, value):
+        if value > self.nlev_lc:
+            raise Exception('Cannot have nlev > nlev_lc')
+        self._nlev = value
+        self._reset_cache()
+
     def _reset_cache(self):
         """Reset cached data that have already been calculated."""
         self._eigvals = None
@@ -97,11 +118,11 @@ class Fluxonium(object):
 
     def _phi_lc(self):
         """Flux (phase) operator in the LC basis."""
-        return (8 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc)
+        return (8*self.E_C/(2*self.E_J)) ** (0.25) * qt.position(self.nlev_lc)
 
     def _n_lc(self):
         """Charge operator in the LC basis."""
-        return (self.E_L / (8 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc)
+        return ((self.E_J*2)/(8*self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc)
 
     def _hamiltonian_lc(self):
         """Qubit Hamiltonian in the LC basis."""
