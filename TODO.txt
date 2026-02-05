@@ -1,7 +1,7 @@
-Living document to list what
+Living document to list what needs/ideally should be done.
 
-TODO: Implement a packaging system for ease of deployment (maybe even docker?)
-TODO: Update the current compatible versions (in particular of python and scipy)
+TODO: Clean up/move the huge set of notebooks which I am not using
 
 Ideally:
 TODO: All plots should have some metadata which corresponds to the software version with which they were produced
+TODO: Do huge parameter sweeps on many cores for lawrencium (or even just a local threadripper overnight or something)

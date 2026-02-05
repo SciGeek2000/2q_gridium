@@ -384,7 +384,7 @@ def evolution_psi_microwave_nonorm_diss(
     return result.states
 
 def evolution_operator_microwave(
-        H_nodrive, H_drive, t_points=None, parallel=False, **kwargs):
+        H_nodrive, H_drive, t_points=None, **kwargs):
     """
     Calculates the unitary evolution operator for a gate activated by
     a microwave drive.
@@ -400,8 +400,6 @@ def evolution_operator_microwave(
     t_points : *array* of float (optional)
         Times at which the evolution operator is returned.
         If None, it is generated from `kwargs['T_gate']`.
-    parallel : True or False
-        Run the qutip propagator function in parallel mode
     **kwargs:
         Contains gate parameters such as pulse shape and gate time.
     Returns
@@ -414,9 +412,10 @@ def evolution_operator_microwave(
         t_points = np.linspace(0, T_gate, 2 * int(T_gate) + 1)
 
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate]]
-    U_t = qt.propagator(H, t_points, [], args=kwargs, parallel=parallel,
-                        options=qt.Options(nsteps=1000))
-
+    U_t = qt.propagator(H, t_points, [], args=kwargs,
+                        options={'nsteps': 10000}) # NOTE: Very relevant for convergence/accuracy!
+    
+    U_t = np.asarray(U_t)
     return U_t
 
 def evolution_operator_microwave_nonorm(
@@ -682,7 +681,7 @@ def fidelity_twoq_general(U_ideal, U_real, comp_space=None):
         U_real = P * U_real * P
     op1 = U_real.dag() * U_real
     op2 = U_real * U_ideal.dag()
-    return (op1.tr() + (abs(op2.tr())) ** 2) / 20.0
+    return (op1.tr() + (abs(op2.tr())) ** 2) / 20.0 # TODO: What is this divide by 20 (!?)
 
 def fidelity_singleq_general(U_ideal, U_real, comp_space=None):
     """A general expression for fidelity of a single-qubit gate.
@@ -731,7 +730,10 @@ def prob_transition(U_t, initial_state, final_state):
     float or *array* of float
         Transition probability.
     """
-    psi_t = U_t * initial_state
+    if isinstance(U_t, qt.Qobj):
+        psi_t = U_t * initial_state
+    else:
+        psi_t = list(u_i * initial_state for u_i in U_t)
     P_final = final_state * final_state.dag()
     return qt.expect(P_final, psi_t)
 
@@ -885,7 +887,8 @@ def change_operator_single_qub_z(
         else:
             single_qubit_gate += (np.exp(1j * (phases[0] - phases[1]
                                                - phases[2])) * vec * vec.dag())
-    return single_qubit_gate * U
+    return single_qubit_gate*U
+
 
 def operator_single_qub_z(
         system, U, comp_space=['00', '01', '10', '11'], interaction='on'):
@@ -928,7 +931,10 @@ def change_operator_proj_subspace(
     """
     P = projection_subspace(
         system, subspace=subspace, interaction=interaction)
-    return P * U * P
+    if isinstance(U, qt.Qobj):
+        return P * U * P
+    else:
+        return list(P * u * P for u in U)
 
 def fidelity_cz_gate_point(
         system, U, comp_space=['00', '01', '10', '11'],

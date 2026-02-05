@@ -242,7 +242,7 @@ class CoupledObjects(object):
             ind = 0
             for state_tuple in itertools.product(*iterable):
                 # The sum of energies.
-                states[ind, 0] = np.sum(
+                states[ind, 0] = sum(
                     objects[k].level(state_tuple[k]) for k in range(nobj))
                 states[ind, 1] = state_tuple
                 # The string label such as '01' for a two-qubit system.

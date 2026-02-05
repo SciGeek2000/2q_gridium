@@ -1,7 +1,11 @@
 # Author: Thomas Ersevim, 2026
 #########################################################################
 
-'''Establishes the ExpGridium class for modeling the gridium qubit and for its use in qchard.'''
+'''Establishes the ExpGridium class for modeling the gridium qubit and for its use in qchard.
+
+Is important that ultimately the relevantly coupled/readout variables are labeled n and phi exactly
+
+'''
 
 __all__ = ['ExpGridium', 'soft_ExpGridium_params', 'hard_ExpGridium_params', 'std_ExpGridium_operation_params', 'std_ExpGridium_sim_params']
 
@@ -193,6 +197,12 @@ class ExpGridium(object):
             raise Exception('LC energy level number must be greater than zero.')
         self._nlev_lc = value
         self._reset_cache()
+
+    def _reset_cache(self):
+        '''Resets cached data that has already been calculated.'''
+        self._eigvals = None
+        self._eigvecs = None
+
 
 ##### Copied from IdealGridium
 '''

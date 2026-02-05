@@ -15,12 +15,14 @@ soft_IdealGridium_params = {
     'E_C': 0.5,
     'E_s': 4,
     'E_2J': 12,
+    'nlev_lc': 230,
 }
 hard_IdealGridium_params = {
     'E_L': 0.1,
     'E_C': 0.1,
     'E_s': 4,
     'E_2J': 12,
+    'nlev_lc': 600,
 }
 
 # Defines standard operating and simulating conditions of circuit for later ease of use
@@ -28,7 +30,6 @@ std_IdealGridium_sim_params = {
     'ng': 0,
     'phi_ext': np.pi,
     'nlev': 6,
-    'nlev_lc': 500,
     'units': 'GHz'
 }
 
@@ -42,8 +43,8 @@ class IdealGridium(object):
     """
 
     def __init__(self, E_L, E_C, E_s, E_2J,
-                 ng, phi_ext=np.pi,
-                 nlev=5, nlev_lc=50, units='GHz'):
+                 ng, nlev, nlev_lc,
+                 phi_ext=np.pi, units='GHz'):
         # Most of these attributes are defined later as properties.
         self.E_L = E_L  # The inductive energy.
         self.E_C = E_C  # The charging energy.
@@ -404,8 +405,5 @@ class IdealGridium(object):
         transitions = eigvals - eigvals[0]
         return transitions
 
-    
-
     # TODO: Implement eigenvector plotting
     # TODO: Implement spectrum plotting
-    # TODO: Implement global plotting standard
