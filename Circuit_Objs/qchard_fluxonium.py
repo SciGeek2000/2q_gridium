@@ -3,10 +3,11 @@
 """The Fluxonium class for representing superconducting fluxonium qubits.
 """
 
-__all__ = ['Fluxonium']
+__all__ = ['Fluxonium', 'fluxonium_params', 'std_fluxonium_sim_params']
 
 import numpy as np
 import qutip as qt
+import dill
 
 fluxonium_params = {
     'E_L': 0.5,
@@ -43,6 +44,14 @@ class Fluxonium(object):
                     self.phi_ext / np.pi))
         return s
 
+    def _save_str(self) -> str:
+        s = ('EL{}'.format(self.E_L)
+             + 'EC{}'.format(self.E_C)
+             + 'EJ{}'.format(self.E_J)
+             + 'nlev{}'.format(self.nlev)
+             + 'nlevlc{}'.format(self.nlev_lc))
+        return s
+    
     @property
     def E_L(self):
         return self._E_L
@@ -338,3 +347,15 @@ class Fluxonium(object):
             raise Exception('Level index is out of bounds.')
         _, evecs = self._eigenspectrum_lc(eigvecs_flag=True)
         return self._n_lc().matrix_element(evecs[level1].dag(), evecs[level2])
+
+    def transition_energies(self, lower_level=0, nlev=None) -> np.ndarray:
+        '''From provided lower level, finds the zeroed transition energy to the upper levels'''
+        if nlev is None:
+            nlev = self.nlev
+        eigvals = self._eigenspectrum_lc()[lower_level:nlev]
+        transitions = eigvals - eigvals[0]
+        return transitions
+
+    def save_obj(self, dir:str):
+        with open(dir+self._save_str(), 'wb') as f:
+            dill.dump(self, f)

@@ -8,6 +8,7 @@ __all__ = ['IdealGridium', 'soft_IdealGridium_params', 'hard_IdealGridium_params
 
 import numpy as np
 import qutip as qt
+import dill
 
 # Defines intrinsic circuit parameters for later ease of use
 soft_IdealGridium_params = {
@@ -64,6 +65,15 @@ class IdealGridium(object):
              + ', and E_2J = {} '.format(self.E_2J) + self.units
              + '. The external phase shift is phi_ext/pi = {}.'.format(
                     self.phi_ext / np.pi))
+        return s
+
+    def _save_str(self) -> str:
+        s = ('EL{}'.format(self.E_L)
+             + 'EC{}'.format(self.E_C)
+             + 'Es{}'.format(self.E_s)
+             + 'E2J{}'.format(self.E_2J)
+             + 'nlev{}'.format(self.nlev)
+             + 'nlevlc{}'.format(self.nlev_lc))
         return s
 
     @property
@@ -405,5 +415,6 @@ class IdealGridium(object):
         transitions = eigvals - eigvals[0]
         return transitions
 
-    # TODO: Implement eigenvector plotting
-    # TODO: Implement spectrum plotting
+    def save_obj(self, dir:str):
+        with open(dir+self._save_str(), 'wb') as f:
+            dill.dump(self, f)

@@ -5,3 +5,6 @@ TODO: Clean up/move the huge set of notebooks which I am not using
 Ideally:
 TODO: All plots should have some metadata which corresponds to the software version with which they were produced
 TODO: Do huge parameter sweeps on many cores for lawrencium (or even just a local threadripper overnight or something)
+
+TODO: Pickle (or see if possible to pickle) common individual quantum objects for use later. This would save a ton of compute time.
+TODO: Setup direct comparison to ensure normalization is good

@@ -1,0 +1,1 @@
+# TODO: Using the same simulation procedure, I should be able to see a three photon drive at all the appropriate frequencies for a rabi. The exact example will likely be something like 0->5->4->1. In this case, since 0-5 and 4-1 have the same splitting, it really only needs two unique tones (~ omega1^2*omega2)
