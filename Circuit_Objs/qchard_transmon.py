@@ -3,26 +3,31 @@
 # Author: Konstantin Nesterov, 2017 and later.
 # Author: Thomas Ersevim, 2026
 ###########################################################################
-"""Classes for representing transmon qubits.
-"""
+"""Classes for representing transmon qubits."""
 
 __all__ = ['TransmonSimple', 'Transmon', 'transmon_creation_from_01']
 
 import numpy as np
-
 import qutip as qt
+import dill
+
+def transmon_creation_from_01(linear_freq, EJ_EC_ratio=50):
+    '''Creates a transmon with a 01 splitting of the given frequency given also a EJ/EC ratio'''
+    h = 1
+    E_C = linear_freq*h/(np.sqrt(8*EJ_EC_ratio)-1)
+    E_J = EJ_EC_ratio*E_C
+    return Transmon(E_C=E_C, E_J=E_J)
 
 class TransmonSimple(object):
     """A class for representing transmons based on Duffing oscillator
     model."""
 
-    def __init__(self, omega_q, alpha, nlev, omega_d=None, units='GHz'):
-        # Most of these attributes are defined later as properties.
+    def __init__(self, omega_q, alpha, nlev, nlev_lc, omega_d=None, units='GHz'):
         self.omega_q = omega_q  # The qubit main transition frequency.
         self.omega_d = omega_d  # Drive frequency for rotating frame stuff.
         self.alpha = alpha  # The qubit anharmonicity (omega_12 - omega_01).
         self.nlev = nlev  # The number of eigenstates in the qubit.
-        self.nlev_lc = self.nlev_lc
+        self.nlev_lc = nlev_lc # The number of harmonic oscilator states
         self.units = units
         self.type = 'qubit'
         self.E_C = -self.alpha
@@ -64,6 +69,17 @@ class TransmonSimple(object):
         self._nlev = value
         self._reset_cache()
 
+    @property
+    def nlev_lc(self):
+        return self._nlev_lc
+    
+    @nlev_lc.setter
+    def nlev_lc(self, value):
+        if value < self.nlev:
+            raise Exception('The number of harmonic oscillator states must be > nlev')
+        self._nlev_lc = value
+        self._reset_cache()
+
     def _reset_cache(self):
         """Reset cached data that have already been calculated."""
         self._eigvals = None
@@ -71,12 +87,11 @@ class TransmonSimple(object):
 
     def _phi_lc(self):
         """Flux (phase) operator in the LC basis."""
-        return (2 * self.E_C / self.E_L) ** (0.25) * qt.position(self.nlev_lc)
+        return (2 * self.E_C / (self.E_J*2)) ** (0.25) * 2**(0.5) * qt.position(self.nlev_lc) #E_J ~ 1/2*E_L so coefficients get augmented
 
     def _n_lc(self):
         """Charge operator in the LC basis."""
-        return (self.E_L / (2 * self.E_C)) ** (0.25) * qt.momentum(self.nlev_lc)
-
+        return ((self.E_J*2) / (32 * self.E_C)) ** (0.25) * 2**(0.5) * qt.momentum(self.nlev_lc) #E_J ~ 1/2*E_L so coefficients get augmented
 
     def a(self):
         """Annihilation operator."""
@@ -285,6 +300,14 @@ class Transmon(object):
         s = ('A transmon qubit with E_C = {} '.format(self.E_C) + self.units
              + ', E_J = {} '.format(self.E_J) + self.units)
         return s
+
+    def _save_str(self) -> str:
+        s = ('EC{}'.format(self.E_C)
+             + 'EJ{}'.format(self.E_J)
+             + 'nlev{}'.format(self.nlev)
+             + 'nlevlc{}'.format(self.nlev_lc))
+        return s
+ 
 
     @property
     def E_C(self):
@@ -577,14 +600,9 @@ class Transmon(object):
         transitions = eigvals - eigvals[0]
         return transitions
 
-# 6.107e9 0-3 transition
-def transmon_creation_from_01(linear_freq, EJ_EC_ratio=50):
-    '''Creates a transmon with a 01 splitting of the given frequency given also a EJ/EC ratio'''
-    h = 1
-    E_C = linear_freq*h/(np.sqrt(8*EJ_EC_ratio)-1)
-    E_J = EJ_EC_ratio*E_C
-    return Transmon(E_C=E_C, E_J=E_J)
-
+    def save_obj(self, dir:str):
+        with open(dir+self._save_str(), 'wb') as f:
+            dill.dump(self, f)
 
     # TODO: Implement eigenvector plotting
     # TODO: Implement spectrum plotting

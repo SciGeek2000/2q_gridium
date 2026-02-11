@@ -12,6 +12,8 @@ __all__ = ['ExpGridium', 'soft_ExpGridium_params', 'hard_ExpGridium_params', 'st
 import numpy as np
 import qutip as qt
 
+# Need some way to define phi1, phi2, phi3 as "the" coupled phi which is later used in the simulation. 
+
 # Defines intrinsic circuit parameters for later ease of use
 soft_ExpGridium_params = { # Like regime 'a' in Table S1 in https://arxiv.org/pdf/2509.14656
     'E_C': 0.5,
@@ -37,8 +39,8 @@ std_ExpGridium_operation_params = {
 }
 # Defines the standard simulation conditions of the ExpGridium
 std_ExpGridium_sim_params = {
-    'nlev': 6,
-    'nlev_lc': 99,
+    'nlev': 7,
+    'nlev_lc': 500,
     'units': 'GHz',
 }
 
@@ -54,19 +56,21 @@ class ExpGridium(object):
     '''
 
     def __init__(self, E_C, E_J, E_Lk, E_L, E_Js, E_Cs,
+                 coupled_var:str='phi1',
                  ng=0, phi_ext=0, theta_ext=np.pi,
-                 nlev=6, nlev_lc=99, units='GHz'):
+                 nlev_lc_kite = 100, nlev_lc_phi1 = 300, units='GHz'):
         self.E_C = E_C, # The globally confining capacitive energy (patterned pads in real circuit)
         self.E_J = E_J, # The individual EJ of each junction in the KITE (no asymmetry).
         self.E_Lk = E_Lk, # The inductance in each leg of the KITE
         self.E_L = E_L, # The globally confining inductance 
         self.E_Js = E_Js, # The josephson junction acting as a phase slip element
         self.E_Cs = E_Cs, # The capacitance inherent to the phase slip josephson junction
+        self.coupled_var = coupled_var
         self.ng = ng, # The offset gate charge
         self.phi_ext = phi_ext, # The threaded flux (not through the KITE)
         self.theta_ext = theta_ext # The threaded flux through the KITE
-        self.nlev = nlev, # The number of eigenstates to solve in the qubit
-        self.nlev_lc = nlev_lc, # The number of coherent states to use in the diagonalization
+        self.nlev_lc_kite = nlev_lc_kite # The number of lc states to apply to each kite's phi which should be symmetric (hence 1 variable)
+        self.nlev_lc_phi1 = nlev_lc_phi1 # The number of lc states to apply to global phi
         self.units = units,
         self.type = 'qubit'
         # Could add any number of extra paracitic capacitance terms if so inclined
@@ -148,6 +152,17 @@ class ExpGridium(object):
             raise Exception('Capacitive energy (Cs) must be greater than zero.')
         self._E_Cs = value
         self._reset_cache()
+        
+    @property
+    def coupled_var(self):
+        return self._coupled_var
+    
+    @coupled_var.setter
+    def coupled_var(self, value):
+        if value not in ['phi1', 'phi2', 'phi3', 'n1', 'n2', 'n3']:
+            raise Exception('Not a valid coupling variable')
+        self._coupled_var = value
+        self._reset_cache()
 
     @property
     def ng(self):
@@ -188,14 +203,25 @@ class ExpGridium(object):
         self._reset_cache()
 
     @property
-    def nlev_lc(self):
-        return self._nlev_lc
+    def nlev_lc_kite(self):
+        return self.nlev_lc_kite
 
-    @nlev_lc.setter
-    def nlev_lc(self, value):
+    @nlev_lc_kite.setter
+    def nlev_lc_kite(self, value):
         if value <= 0:
             raise Exception('LC energy level number must be greater than zero.')
-        self._nlev_lc = value
+        self.nlev_lc_kite = value
+        self._reset_cache()
+
+    @property
+    def nlev_lc_phi1(self):
+        return self._nlev_lc_phi1
+
+    @nlev_lc_phi1.setter
+    def nlev_lc_phi1(self, value):
+        if value <= 0:
+            raise Exception('LC energy level number must be greater than zero.')
+        self._nlev_lc_phi1 = value
         self._reset_cache()
 
     def _reset_cache(self):
@@ -203,6 +229,51 @@ class ExpGridium(object):
         self._eigvals = None
         self._eigvecs = None
 
+    def _phi_lc(self):
+        if self.coupled_var == 'phi1':
+            return self._phi1_lc()
+        elif self.coupled_var == 'phi2':
+            return self._phi2_lc()
+        elif self.coupled_var == 'phi3':
+            return self._phi3_lc()
+        else:
+            return Warning('The specified coupling variable is not recognized')
+        
+    def _n_lc(self):
+        if self.coupled_var == 'n1':
+            return self._n1_lc()
+        if self.coupled_var == 'n2':
+            return self._n2_lc()
+        if self.coupled_var == 'n3':
+            return self._n3_lc()
+        else:
+            return Warning('The specified coupling variable is not recognized')
+
+    # TODO: add the "boilerplate" for both n and phi variables which takes 
+    # TODO: levels and eigen defs and such need to be hard coded to have the phi1 being the analysis variable, since I have redefined the .n and .phi
+    
+    def _hamiltonian_lc(self, form='explicit'):
+        E_C = self.E_C
+        E_J = self.E_J
+        E_Lk = self.E_Lk
+        E_L = self.E_L
+        E_Js = self.E_Js
+        E_Cs = self.E_Cs
+        ng = self.ng
+        phi_ext = self.phi_ext
+        theta_ext = self.theta_ext
+        phi1 = self._phi1_lc()
+        phi2 = self._phi2_lc()
+        phi3 = self._phi3_lc()
+        n1 = self._n1_lc()
+        n2 = self._n2_lc()
+        n3 = self._n3_lc()
+
+        if form=='explicit':
+            return (
+                4*E_Cs*(n1**2+n2**2) +
+                4*E_CJ
+            )
 
 ##### Copied from IdealGridium
 '''

@@ -13,9 +13,10 @@ import numpy as np
 import scipy.special
 import qutip as qt
 
+# TODO: For a two photon drive, I need something that basically looks like this H_drive_coeff_gate function but takes in twice the number of parameters and outputs just the sum of the two sin/cos functions. This seems, roughly speaking, actually simple to implement, though I still need to better understand the normalization/DRAG considerations here. Moreoever, with these many parameters, it almost certainly would be better served with a YAML file. Need to consider refactoring.
 
 def H_drive_coeff_gate(t, args):
-    """
+    r'''
     The time-dependent coefficient of the microwave-drive term for the qutip
     representation of time-dependent Hamiltonians.
 
@@ -36,7 +37,7 @@ def H_drive_coeff_gate(t, args):
         theta = 2 * pi  (full 2-pi rotation)
         phi = 0  (no phase delay)
         shape = square
-    """
+    '''
     if 'T_start' in args:
         T_start = args['T_start']
     else:
@@ -147,7 +148,7 @@ def H_drive_coeff_gate(t, args):
             + xi_y * np.sin(two_pi_t1 * nu_d + phi)) * theta / (2 * np.pi)
 
 def H_drive_coeff_gate_nonorm(t, args):
-    """
+    r"""
     The time-dependent coefficient of the microwave-drive term for the qutip
     representation of time-dependent Hamiltonians.
 
@@ -413,7 +414,7 @@ def evolution_operator_microwave(
 
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate]]
     U_t = qt.propagator(H, t_points, [], args=kwargs,
-                        options={'nsteps': 10000}) # NOTE: Very relevant for convergence/accuracy!
+                        options={'nsteps': 5000}) # NOTE: Does not have a real affect on accuracy so long as it doesn't error out on you!
     
     U_t = np.asarray(U_t)
     return U_t
