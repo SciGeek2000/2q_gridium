@@ -62,4 +62,4 @@ def test_convergence(tested_transmon, plotting=False):
         plt.show()
         return
 
-test_convergence(Transmon(50,1,0,5,100), plotting=True)
+# test_convergence(Transmon(50,1,0,5,100), plotting=True)

@@ -139,6 +139,6 @@ plt.ylabel('eigenstates')
 plt.show()
 '''
 
-test_phi_ext_spectrum(fluxonium, plotting=False)
+test_phi_ext_spectrum(fluxonium, plotting=True)
 # test_ng_spectrum(fluxonium)
 # test_convergence(plotting=False, tested_fluxonium=fluxonium)

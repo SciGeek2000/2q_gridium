@@ -120,28 +120,54 @@ def test_convergence(tested_gridium, plotting=False):
 # TODO: Implement eigenvector plots -- will help with understanding.
 # TODO: Move most of this stuff to the object itself for later use.
 
-'''
-phi_matrix_elements = np.conj(states.T)@system['phi_ope']@states
-n_matrix_elements = np.conj(states.T)@system['n_ope']@states
+@pytest.mark.parametrize('tested_gridium, variable', [(hard_IdealGridium, 'n'), (hard_IdealGridium, 'phi')])
+def test_matrix_element(tested_gridium:IdealGridium, variable, plotting=False):
+    '''
+    A test to see the matrix elements of the gridium.
+    
+    Allowed variables: 'n', 'phi'
 
-plt.figure(figsize = [2,2])
-level_max=4
-matrix = np.abs(phi_matrix_elements[0:level_max,0:level_max])
-plt.rcParams.update({'font.size': 6})
-# Plot the matrix cmap = 'viridis'
-plt.imshow(matrix)
-# Add text annotations for each cell
-for i in range(matrix.shape[0]):
-    for j in range(matrix.shape[1]):
-        plt.text(j, i, f'{matrix[i, j]:.2f}', ha='center', va='center', color='white')
-plt.yticks(range(matrix.shape[0]))
-plt.colorbar(shrink=0.8)  # Add a color bar
-plt.title(r'$| \langle j  | \hat \phi | k \rangle |$')
-plt.xlabel('eigenstates')
-plt.ylabel('eigenstates')
-plt.show()
-'''
+    NOTE: This test seems to be the one that is most sensitive to a lower lc cutoff. In the case of the hard gridium, the higher energy matrix elements are off until lc ~ 1000
+    '''
 
+    copied_gridium = copy.deepcopy(tested_gridium)
+    error_threshold = 0.02 # Defines a minimum 0-1 matrix element for the hard_IdealGridium test
+    nlev = copied_gridium.nlev
+    # copied_gridium.nlev_lc = 800
+
+    var_matrix = np.zeros((nlev,nlev))
+    if variable=='n':
+        for level1 in range(nlev):
+            for level2 in range(nlev):
+                var_matrix[level1, level2] = np.abs(copied_gridium.n_ij(level1=level1, level2=level2))
+    if variable=='phi':
+        for level1 in range(nlev):
+            for level2 in range(nlev):
+                var_matrix[level1, level2] = np.abs(copied_gridium.phi_ij(level1=level1, level2=level2))
+    np.fill_diagonal(var_matrix, 0) # Diagonal matrix elements are meaningless in this context.
+    
+    if plotting:
+        plt.imshow(var_matrix, cmap='Blues', vmin=0, vmax=2)
+        plt.gca().invert_yaxis() # Remove if desirous of conventional matrix labeling
+        # plt.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+        for i in range(var_matrix.shape[0]):
+            for j in range(var_matrix.shape[1]):
+                plt.text(j, i, f'{var_matrix[i, j]:.2f}', ha='center', va='center', color='white')
+        plt.colorbar(shrink=0.8)
+        if variable=='n':
+            plt.title(r'$| \langle j  | \hat n | k \rangle |$')
+        if variable=='phi':
+            plt.title(r'$| \langle j  | \hat \phi | k \rangle |$')
+        plt.xticks()
+        plt.xlabel('eigenstates')
+        plt.ylabel('eigenstates')
+        plt.show()
+    else:
+        # Checking to ensure that in the hard Gridium case, the 0-1 transitions are small for both phi and n, and that it is a symmetric matrix
+        assert var_matrix[0,1] < error_threshold
+        assert np.allclose(var_matrix, var_matrix.T)
+
+# test_matrix_element(soft_IdealGridium, variable='phi', plotting=True)
 # test_phi_ext_spectrum(hard_IdealGridium, plotting=True)
 # test_ng_spectrum(soft_IdealGridium)
 # test_convergence(plotting=True, tested_gridium=soft_IdealGridium)
