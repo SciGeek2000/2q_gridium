@@ -9,6 +9,7 @@ import numpy as np
 import scipy
 import yaml
 import dill
+from scipy.optimize import minimize
 from dataclasses import dataclass
 from matplotlib import pyplot as plt
 from IPython.display import display, Latex
@@ -20,7 +21,7 @@ from Circuit_Objs.qchard_idealgridium import *
 from Circuit_Objs.qchard_fluxonium import *
 
 __all__ = ['PulseConfig', 'SystemConfig', 'load_qubits', 'couple_qubits', 'solve',
-           'visualize_state_propagation', 'solve_coupled_qubits']
+           'visualize_state_propagation', 'solve_coupled_qubits', 'minimize_infidelity', 'converge_on_pi']
 
 @dataclass
 class PulseConfig:
@@ -45,6 +46,7 @@ class SystemConfig:
     detuned_transitions: list
     comparitive_transitions: list
     detuned_comparitive_transitions: list
+    coupled_resonant_transitions: list
 
 def load_qubits(qubitA, qubitB, dir:str='/Users/thomasersevim/QNL/2q_gridium/etc/qubits/'):
     # Attempt to load the qubits (pre-diagonalized) from a file if it exists
@@ -148,7 +150,7 @@ def solve(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig,
 
     U_real = gates.change_operator_proj_subspace(system, U_t, subspace=comp_space, interaction=interaction)
     single_qubit_gates = gates.operator_single_qub_z(system, U_real[-1])
-    fidelity = gates.fidelity_cz_gate( system, U_t, comp_space=comp_space, interaction=interaction, single_gates='z')
+    fidelity = gates.fidelity_cz_gate(system, U_t, comp_space=comp_space, interaction=interaction, single_gates='z')
     U_f = U_t[-1]
     U_me = {}
     for state in comp_space:
@@ -180,6 +182,48 @@ def solve(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig,
         # Like an integrated time so should be proportional to phase accumulation!
 
     return t_points, U_t, phase_accum, fidelity
+
+def minimize_infidelity(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig, solve_method='propagator', mute=False, x0=[0,0]):
+    def infidelity(x):
+        pulse_cfg.drive_detuning, pulse_cfg.DRAG = x
+        _, _, _, fidelity = solve(system, pulse_cfg, system_cfg, solve_method, mute=True)
+        last_infidelity = 1-fidelity[-1]
+        print(last_infidelity)
+        return last_infidelity
+    
+    xopt = minimize(infidelity, x0, method='Nelder-Mead')
+    return xopt, infidelity(x=xopt.x)
+
+def converge_on_pi(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig, solve_method='propagator', mute=False):
+    def cphase_pi_error(x):
+        _, _, phase_accum, _ = solve(system, pulse_cfg, system_cfg, solve_method, mute=True)
+        print(phase_accum)
+        return (np.pi - phase_accum)%(2*np.pi)
+    
+    xopt = minimize(cphase_pi_error, pulse_cfg.T_gate, method='Nelder-Mead')
+    return xopt, cphase_pi_error(x=xopt.x)
+
+# Want a pulse length optimizer for pi rotation then minimize infidelity!
+#Gate parameter
+'''
+T_gate_array = np.linspace(20,100,41) #ns
+error_array = np.zeros_like(T_gate_array)
+drag_coeff_array = np.zeros_like(T_gate_array)
+delta_omega_d_array = np.zeros_like(T_gate_array)
+
+for T_idx, T_gate in enumerate(T_gate_array):
+  
+    t_points = np.linspace(0, T_gate, 10 * int(T_gate) + 1)
+    delta_omega_d = 0
+    drag_coeff = 0
+
+    x0 = [delta_omega_d, drag_coeff]
+    xopt = minimize(infidelity, x0, method ='Powell', tol = 1e-6)
+    
+    error_array[T_idx] = infidelity(xopt.x)
+    delta_omega_d[T_idx] = xopt.x[0]
+    drag_coeff[T_idx] = xopt.x[1]
+'''
 
 def visualize_state_propagation(
         system:CoupledObjects,
@@ -356,14 +400,5 @@ def solve_coupled_qubits(qubitA, qubitB, pulse_path:str, syscfg_path:str, n_show
     # visualize_lost_trace()
     return fig
 
-# Now just need to functionalize following code with new dataclass variables and assemble intelligently into a "def CPHASE" functiono
 
-
-'''
-fluxonium = Fluxonium(**fluxonium_params, **std_fluxonium_sim_params)
-gridium = IdealGridium(**soft_IdealGridium_params, **std_IdealGridium_sim_params)
-pulse_path = '/Users/thomasersevim/QNL/2q_gridium/Simulations/Cphase/std_pulse.yaml'
-system_path = '/Users/thomasersevim/QNL/2q_gridium/Simulations/Cphase/fluxonium_idealgridium_systemconfig.yaml'
-fig = solve_coupled_qubits(fluxonium, gridium, pulse_path=pulse_path, system_path=system_path)
-fig.show()
-'''
+# Given transition of qubitA, return qubitB scaled so that is the transition energy level (simple scaling)
