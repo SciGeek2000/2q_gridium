@@ -1,4 +1,5 @@
 # Reserved for setting up simulation system parameters
+# Uses std fluxonium and soft gridium parameters
 
 qubitA:
   'Fluxonium'
@@ -7,11 +8,11 @@ qubitB:
 driven_qubit:
   'B'
 J_C:
-  0.01
+  0.015077
 interaction:
   'on'
 coupling_type:
-  'charge'
+  'flux'
 computational_space:
   ['00', '01', '10', '11']
 transitions_to_drive:
@@ -22,3 +23,5 @@ comparitive_transitions:
   ['01', '02']
 detuned_comparitive_transitions:
   ['11', '12']
+coupled_resonant_transitions:
+  ['03', '05']
