@@ -126,13 +126,13 @@ def solve(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig,
     qubitA = system._objects[0]
     qubitB = system._objects[1]
 
-    if driven_qubit=='A':
+    if driven_qubit=='A': # TODO: This gives strange results for SCQTransmons
         H_drive = system.n(0)/np.abs(system.n_ij(qubitA, level1, level2, interaction='on'))*drive_amplitude_factor
         # H_drive_dummy = 0 * system.n(0)
     elif driven_qubit=='B':
         H_drive = system.n(1)/np.abs(system.n_ij(qubitB, level1, level2, interaction='on'))*drive_amplitude_factor
         # H_drive_dummy = 0 * system.n(1)
-    elif driven_qubit=='AB': # TODO: check this case regarding how the n_ij matrices should be combined
+    elif driven_qubit=='AB': # TODO: check this case regarding how the n_ij matrices should be combined. Seems like an identical drive strength on each for this.
         H_drive = (system.n(0) + system.n(1))/np.abs(
             (system.n_ij(qubitA, level1, level2, interaction='on')*drive_amplitude_factor +
             system.n_ij(qubitB, level1, level2, interaction='on')*drive_amplitude_factor))

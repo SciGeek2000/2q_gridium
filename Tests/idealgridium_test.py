@@ -3,13 +3,14 @@
 
 '''An IdealGridium test suite'''
 
-import pytest
 import sys
-import numpy as np
-import matplotlib.pyplot as plt
-import copy
-
 sys.path.append('/Users/thomasersevim/QNL/2q_gridium')
+
+import numpy as np
+import pytest
+import copy
+import matplotlib.pyplot as plt
+
 from Circuit_Objs.qchard_idealgridium import *
 import Notebooks.plotting_settings
 
@@ -38,7 +39,7 @@ def test_phi_ext_spectrum(tested_gridium, plotting=False):
 
     error_threshold = 1e-4
 
-    if plotting == False: 
+    if not plotting: 
         fluxes = np.linspace(0, np.pi, 7)
         spectrum = sweep_param_spectrum(fluxes, 'phi_ext', tested_gridium)
         spectrum_plus_pi = sweep_param_spectrum(fluxes+np.pi, 'phi_ext', tested_gridium)
@@ -52,9 +53,9 @@ def test_phi_ext_spectrum(tested_gridium, plotting=False):
         print(worst_error)
         assert worst_error < error_threshold # Assertion is that phi_ext values + pi should be identical (within threshold)
 
-    if plotting == True: # To visually ensure that the convergence is good and stable.
+    if plotting: # To visually ensure that the convergence is good and stable.
         fluxes = np.linspace(0, 2*np.pi, 21)
-        spectrum = sweep_param_spectrum(fluxes, 'phi_ext', tested_gridium)
+        spectrum = sweep_param_spectrum(fluxes/(2*np.pi), 'phi_ext', tested_gridium)
         spectrum = spectrum[:, 1:]
         for i in range(spectrum.shape[1]):
             plt.plot(fluxes, spectrum[:, i], label=r'0$\rightarrow$' + str(i+1))
@@ -65,19 +66,25 @@ def test_phi_ext_spectrum(tested_gridium, plotting=False):
         return
 
 @pytest.mark.parametrize('tested_gridium', [soft_IdealGridium, hard_IdealGridium]) # TODO: could turn this into an actual test. perhaps like that degeneracies are degeneracies or something.
-def test_ng_spectrum(tested_gridium):
-    '''Tests ng dispersion for agreement with Dat's previous spectrum results'''
+def test_ng_spectrum(tested_gridium, plotting=False):
+    '''
+    Tests ng dispersion for agreement with Dat's previous spectrum results
+    NOTE: This test is most sensitive to the lc cutoff. For hard gridium needs about 1000 or more.
+    '''
+
     ngs = np.linspace(0, 1, 41) #Is symmetric about 0 with periodicity of 1, so only doing this range
     spectrum = sweep_param_spectrum(ngs, 'ng', tested_gridium)
     zeros = tested_gridium.transition_energies()
     zeroed_spectrum = (spectrum-zeros)[:,1:]
-    for i in range(zeroed_spectrum.shape[1]):
-        plt.plot(ngs, zeroed_spectrum[:, i], label=r'0$\rightarrow$' + str(i+1))
-    plt.xlabel(r'$n_g$')
-    plt.ylabel(r'Transition Energy ({}/h)'.format(tested_gridium.units))
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+
+    if plotting:
+        for i in range(zeroed_spectrum.shape[1]):
+            plt.plot(ngs, zeroed_spectrum[:, i], label=r'0$\rightarrow$' + str(i+1))
+        plt.xlabel(r'$n_g$')
+        plt.ylabel(r'Transition Energy ({}/h)'.format(tested_gridium.units))
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
 @pytest.mark.parametrize('tested_gridium', [soft_IdealGridium, hard_IdealGridium])
 def test_convergence(tested_gridium, plotting=False):
@@ -93,7 +100,7 @@ def test_convergence(tested_gridium, plotting=False):
     error_threshold = 1e-4
     nlev = copied_gridium.nlev
 
-    if plotting == False: 
+    if not plotting:
         default_lc_transitions = copied_gridium.transition_energies(nlev=nlev)[1:]
         copied_gridium.nlev_lc = copied_gridium.nlev_lc*2
         twice_lc_transitions = copied_gridium.transition_energies(nlev=nlev)[1:]
@@ -101,7 +108,7 @@ def test_convergence(tested_gridium, plotting=False):
         worst_error = np.max(np.abs(pct_error)) 
         assert worst_error < error_threshold # For testing, the assertion is that the precent error, scaled to the largest transition (to get around zeros) should be < error_threshold
 
-    if plotting == True: # To visually ensure that the convergence is good and stable.
+    if plotting: # To visually ensure that the convergence is good and stable.
         plotting_points = 20
         nlevs_lc = np.linspace(10,copied_gridium.nlev_lc*2, plotting_points, dtype=int)
         convergence_array = np.empty((plotting_points, nlev))
@@ -116,9 +123,6 @@ def test_convergence(tested_gridium, plotting=False):
         plt.tight_layout()
         plt.show()
         return
-
-# TODO: Implement eigenvector plots -- will help with understanding.
-# TODO: Move most of this stuff to the object itself for later use.
 
 @pytest.mark.parametrize('tested_gridium, variable', [(hard_IdealGridium, 'n'), (hard_IdealGridium, 'phi')])
 def test_matrix_element(tested_gridium:IdealGridium, variable, plotting=False):
@@ -167,7 +171,10 @@ def test_matrix_element(tested_gridium:IdealGridium, variable, plotting=False):
         assert var_matrix[0,1] < error_threshold
         assert np.allclose(var_matrix, var_matrix.T)
 
-# test_matrix_element(soft_IdealGridium, variable='phi', plotting=True)
-# test_phi_ext_spectrum(hard_IdealGridium, plotting=True)
-# test_ng_spectrum(soft_IdealGridium)
-# test_convergence(plotting=True, tested_gridium=soft_IdealGridium)
+# TODO: Implement eigenvector plots -- will help with understanding.
+
+if __name__=='__main__':
+    test_ng_spectrum(soft_IdealGridium, plotting=True)
+    # test_matrix_element(hard_IdealGridium, variable='phi', plotting=True)
+    # test_phi_ext_spectrum(hard_IdealGridium, plotting=True)
+    # test_convergence(plotting=True, tested_gridium=soft_IdealGridium)

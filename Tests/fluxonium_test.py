@@ -3,17 +3,19 @@
 
 '''An Fluxonium test suite'''
 
-import pytest
 import sys
-import numpy as np
-import matplotlib.pyplot as plt
-import copy
-
 sys.path.append('/Users/thomasersevim/QNL/2q_gridium')
+
+import numpy as np
+import pytest
+import copy
+import matplotlib.pyplot as plt
+
 from Circuit_Objs.qchard_fluxonium import *
 import Notebooks.plotting_settings
 
-fluxonium = Fluxonium(**fluxonium_params, **std_fluxonium_sim_params)
+heavy_fluxonium = Fluxonium(**heavy_fluxonium_params, **std_fluxonium_sim_params)
+light_fluxonium = Fluxonium(**heavy_fluxonium_params, **std_fluxonium_sim_params)
 
 def sweep_param_spectrum(sweep_array:np.ndarray, param_name:str, tested_fluxonium:Fluxonium) -> np.ndarray:
     ''' Returns an array of energies based on a changing parameter "parameter name" using sweep_array as the data array.'''
@@ -28,16 +30,18 @@ def sweep_param_spectrum(sweep_array:np.ndarray, param_name:str, tested_fluxoniu
 ## Tests ##
 # All tests currently agree well with Dat's simulations (when given a sufficently high lc cutoff)
 
-@pytest.mark.parametrize('tested_fluxonium', [fluxonium]) # TODO: Change this so that it is really checking symmetry around phi_ext=pi (doesn't have pi periodicitiy)
-def test_phi_ext_spectrum(tested_fluxonium, plotting=False):
-    '''Tests phi external spectrum is pi periodic and/or plots the spectrum'''
+@pytest.mark.parametrize('tested_fluxonium', [heavy_fluxonium, light_fluxonium])
+def test_phi_ext_spectrum(tested_fluxonium:Fluxonium, plotting=False):
+    '''
+    Tests phi external spectrum is pi periodic and/or plots the spectrum.
+    '''
 
     error_threshold = 1e-4
-    checking_points = 4
+    checking_points = 7
 
-    if plotting == False: 
+    if not plotting: 
         fluxes = np.linspace(0, np.pi, checking_points+1)[1:]
-        right_spectrum = sweep_param_spectrum(np.pi + fluxes, 'phi_ext', tested_fluxonium)
+        right_spectrum = sweep_param_spectrum((np.pi + fluxes), 'phi_ext', tested_fluxonium)
         left_spectrum = sweep_param_spectrum((np.pi - fluxes), 'phi_ext', tested_fluxonium)
         max_pct_errors = list()
         for lev in range(tested_fluxonium.nlev-1): # Removing all zero transition
@@ -49,8 +53,8 @@ def test_phi_ext_spectrum(tested_fluxonium, plotting=False):
         print('Worst percent error: {}'.format(worst_error))
         assert worst_error < error_threshold # Assertion is that phi_ext values + pi should be identical (within threshold)
 
-    if plotting == True: # To visually ensure that the convergence is good and stable.
-        fluxes = np.linspace(0, 2*np.pi, 31)
+    if plotting: # To visually ensure that the convergence is good and stable.
+        fluxes = np.linspace(0, 2*np.pi, 41)
         right_spectrum = sweep_param_spectrum(fluxes, 'phi_ext', tested_fluxonium)
         right_spectrum = right_spectrum[:, 1:]
         for i in range(right_spectrum.shape[1]):
@@ -61,23 +65,8 @@ def test_phi_ext_spectrum(tested_fluxonium, plotting=False):
         plt.show()
         return
 
-@pytest.mark.parametrize('tested_fluxonium', [fluxonium]) # TODO: could turn this into an actual test. perhaps like that degeneracies are degeneracies or something.
-def test_ng_spectrum(tested_fluxonium):
-    '''Tests ng dispersion for agreement with Dat's previous spectrum results'''
-    ngs = np.linspace(0, 1, 41) #Is symmetric about 0 with periodicity of 1, so only doing this range
-    spectrum = sweep_param_spectrum(ngs, 'ng', tested_fluxonium)
-    zeros = tested_fluxonium.transition_energies()
-    zeroed_spectrum = (spectrum-zeros)[:,1:]
-    for i in range(zeroed_spectrum.shape[1]):
-        plt.plot(ngs, zeroed_spectrum[:, i], label=r'0$\rightarrow$' + str(i+1))
-    plt.xlabel(r'$n_g$')
-    plt.ylabel(r'Transition Energy ({}/h)'.format(tested_fluxonium.units))
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-@pytest.mark.parametrize('tested_fluxonium', [fluxonium])
-def test_convergence(tested_fluxonium, plotting=False):
+@pytest.mark.parametrize('tested_fluxonium', [heavy_fluxonium, light_fluxonium])
+def test_convergence(tested_fluxonium:Fluxonium, plotting=False):
     '''
     A test for the convergence of the gridium spectra so that as a function of the nlev_lc, the
     change is negligible (i.e. the asymptote gives within less than 1 percent of the chosen
@@ -90,7 +79,7 @@ def test_convergence(tested_fluxonium, plotting=False):
     error_threshold = 1e-4
     nlev = copied_fluxonium.nlev
 
-    if plotting == False: 
+    if not plotting:
         default_lc_transitions = copied_fluxonium.transition_energies(nlev=nlev)[1:]
         copied_fluxonium.nlev_lc = copied_fluxonium.nlev_lc*2
         twice_lc_transitions = copied_fluxonium.transition_energies(nlev=nlev)[1:]
@@ -98,7 +87,7 @@ def test_convergence(tested_fluxonium, plotting=False):
         worst_error = np.max(np.abs(pct_error)) 
         assert worst_error < error_threshold # For testing, the assertion is that the precent error, scaled to the largest transition (to get around zeros) should be < error_threshold
 
-    if plotting == True: # To visually ensure that the convergence is good and stable.
+    if plotting: # To visually ensure that the convergence is good and stable.
         plotting_points = 20
         nlevs_lc = np.linspace(10,copied_fluxonium.nlev_lc*2, plotting_points, dtype=int)
         convergence_array = np.empty((plotting_points, nlev))
@@ -116,29 +105,6 @@ def test_convergence(tested_fluxonium, plotting=False):
 
 # TODO: Implement eigenvector plots -- will help with understanding.
 
-
-'''
-phi_matrix_elements = np.conj(states.T)@system['phi_ope']@states
-n_matrix_elements = np.conj(states.T)@system['n_ope']@states
-
-plt.figure(figsize = [2,2])
-level_max=4
-matrix = np.abs(phi_matrix_elements[0:level_max,0:level_max])
-plt.rcParams.update({'font.size': 6})
-# Plot the matrix cmap = 'viridis'
-plt.imshow(matrix)
-# Add text annotations for each cell
-for i in range(matrix.shape[0]):
-    for j in range(matrix.shape[1]):
-        plt.text(j, i, f'{matrix[i, j]:.2f}', ha='center', va='center', color='white')
-plt.yticks(range(matrix.shape[0]))
-plt.colorbar(shrink=0.8)  # Add a color bar
-plt.title(r'$| \langle j  | \hat \phi | k \rangle |$')
-plt.xlabel('eigenstates')
-plt.ylabel('eigenstates')
-plt.show()
-'''
-
-test_phi_ext_spectrum(fluxonium, plotting=True)
-# test_ng_spectrum(fluxonium)
-# test_convergence(plotting=False, tested_fluxonium=fluxonium)
+if __name__=='__main__':
+    # test_phi_ext_spectrum(Fluxonium(**heavy_fluxonium_params, **std_fluxonium_sim_params), plotting=True)
+    # test_convergence(tested_fluxonium=light_fluxonium, plotting=True)

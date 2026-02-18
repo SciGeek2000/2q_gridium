@@ -3,22 +3,30 @@
 """The Fluxonium class for representing superconducting fluxonium qubits.
 """
 
-__all__ = ['Fluxonium', 'fluxonium_params', 'std_fluxonium_sim_params']
+__all__ = ['Fluxonium', 'heavy_fluxonium_params', 'light_fluxonium_params', 'std_fluxonium_sim_params']
 
 import numpy as np
 import qutip as qt
 import dill
 
-fluxonium_params = {
+# Need parameters to fall in this roughly 400 to 600 MHz regieme
+
+heavy_fluxonium_params = { # Typical heavy fluxonium parameters (EJ/EC ~ 5-20, EC/EL~0.5-2). Harbors fluxon-like states.
     'E_L': 0.5,
     'E_C': 1.0,
     'E_J': 8.0,
 }
 
+light_fluxonium_params = { # Typical light fluxonium parameters. Still harbors some fluxon like states, though less distinct.
+    'E_L': 0.85,
+    'E_C': 1.5,
+    'E_J': 5,
+}
+
 std_fluxonium_sim_params = {
     'phi_ext': np.pi,
-    'nlev': 5,
-    'nlev_lc': 200,
+    'nlev': 6,
+    'nlev_lc': 100,
 }
 
 class Fluxonium(object):

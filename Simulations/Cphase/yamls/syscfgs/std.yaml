@@ -8,7 +8,7 @@ qubitB:
 driven_qubit:
   'B'
 J_C:
-  0.01
+  0.002
 interaction:
   'on'
 coupling_type:

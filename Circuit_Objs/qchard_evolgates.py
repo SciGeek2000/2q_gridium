@@ -379,8 +379,9 @@ def evolution_psi_microwave_nonorm_diss(
         t_points = np.linspace(0, T_gate, 2 * int(T_gate) + 1)
 
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate_nonorm]]
-    result = qt.mesolve(H, psi0, t_points, c_ops, args=kwargs,
-                        options=qt.Options(nsteps=100000, atol=1e-12, rtol=1e-10))
+    result = qt.mesolve(H, psi0, t_points, c_ops, parallel=True, num_cpus=10, args=kwargs,
+                        options=qt.Options(nsteps=100000, atol=1e-12, rtol=1e-10), normalize_output=False)
+
 
     return result.states
 
@@ -413,8 +414,7 @@ def evolution_operator_microwave(
         t_points = np.linspace(0, T_gate, 2 * int(T_gate) + 1)
 
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate]]
-    U_t = qt.propagator(H, t_points, [], args=kwargs,
-                        options={'nsteps': 5000}) # NOTE: Does not have a real affect on accuracy so long as it doesn't error out on you!
+    U_t = qt.propagator(H, t_points, [], args=kwargs, options={'nsteps': 1000, 'progress_bar': 'tqdm', 'normalize_output': False}) # NOTE: Does not have a real affect on accuracy so long as it doesn't error out on you!
     
     U_t = np.asarray(U_t)
     return U_t

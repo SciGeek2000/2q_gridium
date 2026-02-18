@@ -7,7 +7,7 @@
 
 # TODO: Implement eigenvector plotting
 
-__all__ = ['TransmonSimple', 'Transmon', 'SCQTransmon', 'std_transmon_params', 'transmon_creation_from_01']
+__all__ = ['TransmonSimple', 'Transmon', 'SCQTransmon', 'std_transmon_params', 'std_transmon_sim_params', 'transmon_creation_from_01']
 
 import numpy as np
 import scipy
@@ -15,6 +15,7 @@ import dill
 
 import qutip as qt
 import scqubits as scq
+
 
 std_transmon_params = {
     'E_J': 15,
@@ -27,12 +28,14 @@ std_transmon_sim_params = {
     'nlev_lc': 15,
 }
 
+
 def transmon_creation_from_01(linear_freq, EJ_EC_ratio=50):
     '''Creates a transmon with a 01 splitting of the given frequency given also a EJ/EC ratio'''
     h = 1
     E_C = linear_freq*h/(np.sqrt(8*EJ_EC_ratio)-1)
     E_J = EJ_EC_ratio*E_C
     return Transmon(E_C=E_C, E_J=E_J)
+
 
 class SCQTransmon(object):
     '''A wrapper class for scqubits' form of the transmon'''
@@ -42,7 +45,7 @@ class SCQTransmon(object):
         self._E_J = E_J
         self._ng = ng
         self._nlev = nlev
-        self._nlev_lc = nlev_lc #NOTE: This is a n charge basis cutoff but is not renamed because of dependencies.
+        self._nlev_cutoff = nlev_lc
         self.units = units
         self.type = 'qubit'
         self.scq_transmon = self._recreate_transmon()
@@ -57,7 +60,7 @@ class SCQTransmon(object):
              + 'EC{}'.format(self.E_C)
              + 'EJ{}'.format(self.E_J)
              + 'nlev{}'.format(self.nlev)
-             + 'nlevlc{}'.format(self.nlev_lc))
+             + 'nlevlc{}'.format(self.nlev_cutoff))
         return s
  
     def _recreate_transmon(self):
@@ -66,7 +69,7 @@ class SCQTransmon(object):
         time there is a change to any of the internal @property attribtues of the SCQTransmon
         object.
         '''
-        self.scq_transmon = scq.Transmon(EC=self.E_C, EJ=self.E_J, ng=self.ng, ncut=self.nlev_lc, truncated_dim=self.nlev)
+        self.scq_transmon = scq.Transmon(EC=self.E_C, EJ=self.E_J, ng=self.ng, ncut=self.nlev_cutoff, truncated_dim=self.nlev)
         return self.scq_transmon
 
     @property
@@ -112,14 +115,14 @@ class SCQTransmon(object):
         self._recreate_transmon()
 
     @property
-    def nlev_lc(self):
-        return self._nlev_lc
+    def nlev_cutoff(self):
+        return self._nlev_cutoff
 
-    @nlev_lc.setter
-    def nlev_lc(self, value):
+    @nlev_cutoff.setter
+    def nlev_cutoff(self, value):
         if value <= 0:
             raise Exception('The number of lc levels must be positive.')
-        self._nlev_lc = value
+        self._nlev_cutoff = value
         self._recreate_transmon()
 
     def levels(self, nlev=None, eigvecs=False):

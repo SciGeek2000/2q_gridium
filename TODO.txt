@@ -6,5 +6,14 @@ Ideally:
 TODO: All plots should have some metadata which corresponds to the software version with which they were produced
 TODO: Do huge parameter sweeps on many cores for lawrencium (or even just a local threadripper overnight or something)
 
-TODO: Pickle (or see if possible to pickle) common individual quantum objects for use later. This would save a ton of compute time.
 TODO: Setup direct comparison to ensure normalization is good
+
+TODO: Ensure propegator solving uses all cores (I think this option needs to be enabled). Ultimately I think mesolve is preferable since this is a master equation solver and not just s.e. solver.
+TODO: Add simulation parameters to name or content of cphase plots
+
+NEW OBJECTIVES! Very simple.
+1.) Optimize fluxonium-idealgridium gate for pi phase pickup. This is a good proof of concept. Shoot for two 9s to begin
+    - DONE!
+2.) Proof of simulation via tranmons-fluxonium or fluxonium-fluxonium cphase.
+    - Transmon-Fluxonium would require a better understanding of the transmon simulation to match the compact phase of phi.
+    - DONE! Requires a bit more polish, but otherwise done!
