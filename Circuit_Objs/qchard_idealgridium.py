@@ -43,6 +43,8 @@ class IdealGridium(object):
     In reality, these are effective circuit elements. This is explored in the ExpGridium class.
     """
 
+    name = 'Ideal Gridium'
+
     def __init__(self, E_L, E_C, E_s, E_2J,
                  ng, nlev, nlev_lc,
                  phi_ext=np.pi, units='GHz'):
@@ -75,6 +77,13 @@ class IdealGridium(object):
              + 'nlev{}'.format(self.nlev)
              + 'nlevlc{}'.format(self.nlev_lc))
         return s
+
+    def _scale_E_params(self, scaling):
+        self.E_L = self.E_L*scaling
+        self.E_C = self.E_C*scaling
+        self.E_s = self.E_s*scaling
+        self.E_2J = self.E_2J*scaling
+        return
 
     @property
     def E_L(self):

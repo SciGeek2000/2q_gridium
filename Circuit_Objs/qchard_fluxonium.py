@@ -1,4 +1,6 @@
 # Author: Long Nguyen, Konstantin Nesterov
+
+# Updates
 ###########################################################################
 """The Fluxonium class for representing superconducting fluxonium qubits.
 """
@@ -31,9 +33,10 @@ std_fluxonium_sim_params = {
 
 class Fluxonium(object):
     """A class for representing superconducting fluxonium qubits."""
+    name = 'Fluxonium'
 
     def __init__(self, E_L, E_C, E_J, phi_ext=np.pi,
-                 nlev=5, nlev_lc=20, units='GHz'):
+                 nlev=5, nlev_lc=100, units='GHz'):
         # Most of these attributes are defined later as properties.
         self.E_L = E_L  # The inductive energy.
         self.E_C = E_C  # The charging energy.
@@ -59,6 +62,12 @@ class Fluxonium(object):
              + 'nlev{}'.format(self.nlev)
              + 'nlevlc{}'.format(self.nlev_lc))
         return s
+
+    def _scale_E_params(self, scaling):
+        self.E_L = self.E_L*scaling
+        self.E_C = self.E_C*scaling
+        self.E_J = self.E_J*scaling
+        return
     
     @property
     def E_L(self):

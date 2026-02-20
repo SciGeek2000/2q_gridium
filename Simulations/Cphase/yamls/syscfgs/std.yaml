@@ -8,11 +8,11 @@ qubitB:
 driven_qubit:
   'B'
 J_C:
-  0.002
+  0.030
 interaction:
   'on'
 coupling_type:
-  'flux'
+  'charge'
 computational_space:
   ['00', '01', '10', '11']
 transitions_to_drive:

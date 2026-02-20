@@ -16,6 +16,8 @@ import dill
 import qutip as qt
 import scqubits as scq
 
+from Circuit_Objs.qchard_abstractobj import AbstractQubit
+
 
 std_transmon_params = {
     'E_J': 15,
@@ -39,6 +41,9 @@ def transmon_creation_from_01(linear_freq, EJ_EC_ratio=50):
 
 class SCQTransmon(object):
     '''A wrapper class for scqubits' form of the transmon'''
+
+    name = 'Transmon'
+
     def __init__(self, E_C, E_J,
                  ng=0, nlev=5, nlev_lc=15, units='GHz'):
         self._E_C = E_C
@@ -71,6 +76,11 @@ class SCQTransmon(object):
         '''
         self.scq_transmon = scq.Transmon(EC=self.E_C, EJ=self.E_J, ng=self.ng, ncut=self.nlev_cutoff, truncated_dim=self.nlev)
         return self.scq_transmon
+
+    def _scale_E_params(self, scaling):
+        self.E_C = self.E_C*scaling
+        self.E_J = self.E_J*scaling
+        return
 
     @property
     def E_C(self):
@@ -185,7 +195,8 @@ class SCQTransmon(object):
         if nlev < 1 or nlev > self.nlev:
             raise Exception('`nlev` is out of bounds.')
         exp_iphi_op = self.scq_transmon.exp_i_phi_operator(energy_esys=True)
-        phi_op = scipy.linalg.logm(exp_iphi_op)/1j
+        exp_iphi_op = np.astype(exp_iphi_op, complex)
+        phi_op = scipy.linalg.logm(exp_iphi_op)/(1j)
         return qt.Qobj(phi_op)
     
     def phi_ij(self, level1, level2):
@@ -796,3 +807,5 @@ class TransmonSimple(object):
         return self.adag().matrix_element(qt.basis(self.nlev, level1).dag(),
                                           qt.basis(self.nlev, level2))
 
+
+SCQTransmon(1,1)

@@ -414,7 +414,7 @@ def evolution_operator_microwave(
         t_points = np.linspace(0, T_gate, 2 * int(T_gate) + 1)
 
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate]]
-    U_t = qt.propagator(H, t_points, [], args=kwargs, options={'nsteps': 1000, 'progress_bar': 'tqdm', 'normalize_output': False}) # NOTE: Does not have a real affect on accuracy so long as it doesn't error out on you!
+    U_t = qt.propagator(H, t_points, [], args=kwargs, options={'nsteps': 1000, 'progress_bar': 'tqdm', 'normalize_output': False}) # NOTE: If the simulation blows up at the end, increase the nsteps
     
     U_t = np.asarray(U_t)
     return U_t
