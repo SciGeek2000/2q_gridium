@@ -268,6 +268,18 @@ class IdealGridium(object):
         else:
             return self.levels()[level_index]
 
+    def eigvecs(self, nlev=None):
+        """A shortcut to get an eigenvector via level(eigvec=True).
+
+        Returns
+        -------
+        :class:`qutip.Qobj`
+            Eigenvector.
+        """
+        _, evec = self.levels(nlev=nlev, eigvecs=True)
+        return evec
+
+
     def eigvec(self, level_index):
         """A shortcut to get an eigenvector via level(eigvec=True).
 
@@ -308,7 +320,8 @@ class IdealGridium(object):
         :class:`qutip.Qobj`
             The Hamiltonian operator.
         """
-        return qt.Qobj(np.diag(self.levels(nlev=nlev)))
+        H_Qobj = qt.Qobj(np.diag(self.levels(nlev=nlev)))
+        return H_Qobj
 
     def eye(self, nlev=None):
         """Identity operator in the qubit eigenbasis.

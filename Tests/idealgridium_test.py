@@ -38,6 +38,7 @@ def test_phi_ext_spectrum(tested_gridium, plotting=False):
     '''Tests phi external spectrum is pi periodic and/or plots the spectrum'''
 
     error_threshold = 1e-4
+    tested_gridium = copy.deepcopy(tested_gridium)
 
     if not plotting: 
         fluxes = np.linspace(0, np.pi, 7)
@@ -54,14 +55,17 @@ def test_phi_ext_spectrum(tested_gridium, plotting=False):
         assert worst_error < error_threshold # Assertion is that phi_ext values + pi should be identical (within threshold)
 
     if plotting: # To visually ensure that the convergence is good and stable.
-        fluxes = np.linspace(0, 2*np.pi, 21)
-        spectrum = sweep_param_spectrum(fluxes/(2*np.pi), 'phi_ext', tested_gridium)
+        fluxes = np.linspace(0, 1, 81) # In units of 2*pi
+        tested_gridium.nlev = 6
+        tested_gridium.nlev_lc = 400
+        spectrum = sweep_param_spectrum(fluxes*(2*np.pi), 'phi_ext', tested_gridium)
         spectrum = spectrum[:, 1:]
         for i in range(spectrum.shape[1]):
             plt.plot(fluxes, spectrum[:, i], label=r'0$\rightarrow$' + str(i+1))
         plt.xlabel(r'$\phi_{ext}/2\pi$')
-        plt.ylabel(r'Transition Energy ({}/h)'.format(tested_gridium.units))
-        plt.legend()
+        plt.ylabel(r'Transition Energy ({})'.format(tested_gridium.units))
+        # plt.legend()
+        plt.tight_layout()
         plt.show()
         return
 
@@ -174,7 +178,7 @@ def test_matrix_element(tested_gridium:IdealGridium, variable, plotting=False):
 # TODO: Implement eigenvector plots -- will help with understanding.
 
 if __name__=='__main__':
-    test_ng_spectrum(soft_IdealGridium, plotting=True)
+    # test_ng_spectrum(soft_IdealGridium, plotting=True)
     # test_matrix_element(hard_IdealGridium, variable='phi', plotting=True)
-    # test_phi_ext_spectrum(hard_IdealGridium, plotting=True)
+    test_phi_ext_spectrum(hard_IdealGridium, plotting=True)
     # test_convergence(plotting=True, tested_gridium=soft_IdealGridium)

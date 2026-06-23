@@ -16,6 +16,6 @@ DRAG_coeff:
 drive_amplitude_factor:
   1
 targeted_drive:
-  'split'
+  'default'
 drive_detuning:
   0

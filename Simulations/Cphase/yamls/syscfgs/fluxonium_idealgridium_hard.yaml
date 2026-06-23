@@ -8,7 +8,7 @@ qubitB:
 driven_qubit:
   'B'
 J_C:
-  0.015077
+  0.001
 interaction:
   'on'
 coupling_type:
@@ -16,7 +16,7 @@ coupling_type:
 computational_space:
   ['00', '01', '10', '11']
 transitions_to_drive:
-  ['00', '03']
+  ['00', '02'] # Based on indexing, this is actually the correct index now.
 detuned_transitions:
   ['10', '13']
 comparitive_transitions:

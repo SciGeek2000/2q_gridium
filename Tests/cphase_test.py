@@ -18,6 +18,11 @@ import matplotlib.pyplot as plt
 from Circuit_Objs.qchard_idealgridium import *
 import Notebooks.plotting_settings
 
+
+
+
+
+
 def test():
     return
 

@@ -2,7 +2,7 @@
 # Uses std fluxonium and soft gridium parameters
 
 T_gate: 
-  40
+  200
 pulse_shape:
   'cos'
 T_rise:

@@ -189,7 +189,7 @@ class SCQTransmon(object):
         n_op = self.scq_transmon.n_operator(energy_esys=True)
         return qt.Qobj(n_op)
 
-    def phi(self, nlev=None):
+    def phi(self, nlev=None): # Kind of doomed I think to this being not a hermitian phi :(
         if nlev is None:
             nlev = self.nlev
         if nlev < 1 or nlev > self.nlev:
@@ -806,6 +806,3 @@ class TransmonSimple(object):
             raise Exception('Level index is out of bounds.')
         return self.adag().matrix_element(qt.basis(self.nlev, level1).dag(),
                                           qt.basis(self.nlev, level2))
-
-
-SCQTransmon(1,1)

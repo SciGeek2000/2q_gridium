@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from matplotlib import pyplot as plt
 from IPython.display import display, Latex
 
-
 from Circuit_Objs import qchard_evolgates as gates;
 from Circuit_Objs.qchard_coupobj import CoupledObjects
 from Circuit_Objs.qchard_idealgridium import *
@@ -30,7 +29,6 @@ from Circuit_Objs.qchard_abstractobj import AbstractQubit
 __all__ = ['PulseConfig', 'SystemConfig', 'load_qubits', 'couple_qubits', 'solve',
            'visualize_state_propagation', 'solve_coupled_qubits', 'minimize_infidelity',
            'converge_on_pi', 'scale_qubitA_transition']
-
 
 @dataclass
 class PulseConfig:
@@ -43,7 +41,6 @@ class PulseConfig:
     drive_amplitude_factor: float
     targeted_drive: str
     drive_detuning: float
-
 
 @dataclass
 class SystemConfig:
@@ -90,11 +87,15 @@ def scale_qubitA_transition(qubitA:AbstractQubit, qubitB: AbstractQubit, system_
               - system.level(system_cfg.transitions_to_drive[0], interaction='off'))
     qB_trans = (system.level(system_cfg.coupled_resonant_transitions[1], interaction='off')
               - system.level(system_cfg.coupled_resonant_transitions[0], interaction='off'))
+
+    if np.issubdtype(qA_trans.dtype, np.complexfloating) or np.issubdtype(qB_trans.dtype, np.complexfloating):
+        raise Exception('Qubit transitions are yeilding a complex frequency. Check convergences/cutoffs')
+
     scaling = qB_trans/qA_trans
 
     if not mute:
-        print('{} uncoupled, prescaled transition is {:.1f} GHz'.format(qubitA.name, qA_trans))
-        print('{} uncoupled intended resonant transition is {:.1f} GHz'.format(qubitB.name, qB_trans))
+        print('{} uncoupled, prescaled transition is {:.3f} GHz'.format(qubitA.name, qA_trans))
+        print('{} uncoupled intended resonant transition is {:.3f} GHz'.format(qubitB.name, qB_trans))
     if scaling < scaling_margin_factor and scaling > scaling_margin_factor**(-1): # Prevents unintended resolving needed for hard qubit diagonalization
         return qubitA, qubitB
     if scaling > scaling_warning_factor or scaling < scaling_warning_factor**(-1):
@@ -105,8 +106,11 @@ def scale_qubitA_transition(qubitA:AbstractQubit, qubitB: AbstractQubit, system_
     qA_trans = (system.level(system_cfg.detuned_transitions[0], interaction='off')
               - system.level(system_cfg.transitions_to_drive[0], interaction='off'))
 
+    if np.issubdtype(qA_trans.dtype, np.complexfloating) or np.issubdtype(qB_trans.dtype, np.complexfloating):
+        raise Exception('Qubit transitions are yeilding a complex frequency. Check convergences/cutoffs')
+
     if not mute:
-        print('{} uncoupled, postscaled transition is {:.1f} GHz'.format(qubitA.name, qA_trans))
+        print('{} uncoupled, postscaled transition is {:.3f} GHz'.format(qubitA.name, qA_trans))
 
     return qubitA, qubitB
 
@@ -180,12 +184,20 @@ def solve(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig,
     A_n_matrix_el = np.abs(system.n_ij(qubitA, transitions_to_drive[0], transitions_to_drive[1], interaction='on'))
     B_n_matrix_el = np.abs(system.n_ij(qubitB, transitions_to_drive[0], transitions_to_drive[1], interaction='on'))
 
+    # Changes where the charge drive occurs and scales the drive to the size of the matrix element
+    if not system.n(0).check_herm():
+        raise Exception('system.n(0) is not hermitian!')
+    if not system.n(1).check_herm():
+        raise Exception('system.n(1) is not hermitian!')
+
+    # I see. The matrix element is so tiny, that upon cleanup etc the H_drive ceases to be hermitian, and this is an issue.
+
     if driven_qubit=='A':
-        H_drive = system.n(0)*drive_amplitude_factor/A_n_matrix_el
+        H_drive = (system.n(0)/A_n_matrix_el)*drive_amplitude_factor
     elif driven_qubit=='B':
-        H_drive = system.n(1)*drive_amplitude_factor/B_n_matrix_el
-    elif driven_qubit=='AB': # TODO: Consider when the abs should be applied
-        H_drive = (system.n(0) + system.n(1))*drive_amplitude_factor/(A_n_matrix_el + B_n_matrix_el)
+        H_drive = (system.n(1)/B_n_matrix_el)*drive_amplitude_factor
+    elif driven_qubit=='AB':
+        H_drive = (system.n(0) + system.n(1))/(A_n_matrix_el + B_n_matrix_el)*drive_amplitude_factor
     H_drive_dummy = 0 * system.n(0)
 
     if targeted_drive=='default':
@@ -264,7 +276,6 @@ def solve(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig,
         print('Time spent in the 2nd state for {} - {}: {:.1f} ns'.format(
             transitions_to_drive[0], transitions_to_drive[1], t_2nd_excited))
         # Like an integrated time so should be proportional to phase accumulation!
-
     return t_points, U_t, phase_accum, fidelity
 
 def minimize_infidelity(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig, solve_method='propagator', mute=False, x0=[0,0]):
@@ -286,28 +297,6 @@ def converge_on_pi(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:Syst
     
     xopt = minimize(cphase_pi_error, pulse_cfg.T_gate, method='Nelder-Mead')
     return xopt, cphase_pi_error(x=xopt.x)
-
-# Want a pulse length optimizer for pi rotation then minimize infidelity!
-#Gate parameter
-'''
-T_gate_array = np.linspace(20,100,41) #ns
-error_array = np.zeros_like(T_gate_array)
-drag_coeff_array = np.zeros_like(T_gate_array)
-delta_omega_d_array = np.zeros_like(T_gate_array)
-
-for T_idx, T_gate in enumerate(T_gate_array):
-  
-    t_points = np.linspace(0, T_gate, 10 * int(T_gate) + 1)
-    delta_omega_d = 0
-    drag_coeff = 0
-
-    x0 = [delta_omega_d, drag_coeff]
-    xopt = minimize(infidelity, x0, method ='Powell', tol = 1e-6)
-    
-    error_array[T_idx] = infidelity(xopt.x)
-    delta_omega_d[T_idx] = xopt.x[0]
-    drag_coeff[T_idx] = xopt.x[1]
-'''
 
 def visualize_state_propagation(
         system:CoupledObjects,
@@ -347,7 +336,7 @@ def visualize_state_propagation(
     max_final_amp = {}
     for state in all_states_str: # a-priori we don't know what positions to show, so let's search through all of them, and choose to display the ones with the highest final values (that aren't the identity case)
         plt_00[state] = gates.prob_transition(U_t, system.eigvec(comp_space[0]), system.eigvec(state))
-        max_final_amp[state] = plt_00[state][-1] # NOTE: Maybe we want to actually show the states with highest intermediate values? (i.e. np.max(plt_00[state])
+        max_final_amp[state] = np.max(plt_00[state]) # plt_00[state][-1] # NOTE: Maybe we want to actually show the states with highest intermediate values? (i.e. np.max(plt_00[state])
     top_keys = sorted(max_final_amp, key=max_final_amp.get, reverse=True)[:n_shown_states]
     for key in top_keys:
         ax000.scatter(t_points, plt_00[key], lw=2, label=r'$P({}\rightarrow{})$'.format(comp_space[0], key))

@@ -2,7 +2,7 @@
 # Uses std fluxonium and soft gridium parameters
 
 T_gate: 
-  120
+  100
 pulse_shape:
   'cos'
 T_rise:
@@ -16,6 +16,6 @@ DRAG_coeff:
 drive_amplitude_factor:
   1
 targeted_drive:
-  'split'
+  'default'
 drive_detuning:
   0

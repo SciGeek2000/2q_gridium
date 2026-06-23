@@ -21,6 +21,8 @@ from Circuit_Objs.qchard_fluxonium import *
 from Simulations.Cphase.workflow_funcs import *
 import Notebooks.plotting_settings
 
+__all__ = ['test_matrix_element']
+
 #@pytest.mark.parametrize('tested_gridium, variable', [(hard_IdealGridium, 'n'), (hard_IdealGridium, 'phi')])
 def test_matrix_element(system:CoupledObjects, system_cfg:SystemConfig, qubit:str, operator:str, all_transitions=False, plotting=False):
     '''
@@ -31,15 +33,15 @@ def test_matrix_element(system:CoupledObjects, system_cfg:SystemConfig, qubit:st
     copied_system = copy.deepcopy(system)
     error_threshold = 0.02 # Defines a minimum 0-1 matrix element for the hard_IdealGridium test
 
-    qubitA = system._objects[0]
-    qubitB = system._objects[1] 
+    qubitA = copied_system._objects[0]
+    qubitB = copied_system._objects[1] 
     if qubit=='A':
         qubit = qubitA
     elif qubit=='B':
         qubit = qubitB
-    if operator=='phi':
+    if operator=='flux':
         operator = qubit.phi()
-    elif operator=='n':
+    elif operator=='charge':
         operator = qubit.n()
 
     if all_transitions:
@@ -50,7 +52,7 @@ def test_matrix_element(system:CoupledObjects, system_cfg:SystemConfig, qubit:st
         for tuple_row in tuples:
             j = 0
             for tuple_column in tuples:
-                inner_prod_matrix[i, j] = np.abs(system.matr_el(qubit, operator, tuple_row, tuple_column, interaction='on'))
+                inner_prod_matrix[i, j] = np.abs(copied_system.matr_el(qubit, operator, tuple_row, tuple_column, interaction='on'))
                 j += 1
             i += 1
         np.fill_diagonal(inner_prod_matrix, 0)
@@ -73,19 +75,23 @@ def test_matrix_element(system:CoupledObjects, system_cfg:SystemConfig, qubit:st
             plt.yticks(ticks=range(total_length), labels=label_tuples, size='small', minor=False)
             plt.xlabel('eigenstates')
             plt.ylabel('eigenstates')
+            plt.tight_layout()
             plt.show()
     if not all_transitions:
         all_relevant_states = (
             system_cfg.transitions_to_drive
         + system_cfg.detuned_transitions
         + system_cfg.comparitive_transitions
-        + system_cfg.detuned_comparitive_transitions)
+        + system_cfg.detuned_comparitive_transitions
+        + system_cfg.coupled_resonant_transitions)
+        
+        all_relevant_states = tuple(dict.fromkeys(all_relevant_states)) # Deduplicates while preserving order
 
         total_length = len(all_relevant_states)
         inner_prod_matrix = np.zeros((total_length, total_length))
         for i, row_state in enumerate(all_relevant_states):
             for j, column_state in enumerate(all_relevant_states):
-                inner_prod_matrix[i, j] = np.abs(system.matr_el(qubit, operator, row_state, column_state, interaction='on'))
+                inner_prod_matrix[i, j] = np.abs(copied_system.matr_el(qubit, operator, row_state, column_state, interaction='on'))
         np.fill_diagonal(inner_prod_matrix, 0)
 
         if plotting:
@@ -107,8 +113,8 @@ def test_matrix_element(system:CoupledObjects, system_cfg:SystemConfig, qubit:st
         pass
 
 if __name__=='__main__':
-    pulse_path = 'Simulations/CPhase/yamls/pulses/fluxonium_idealgridium_soft.yaml'
-    syscfg_path = 'Simulations/CPhase/yamls/syscfgs/fluxonium_idealgridium_soft.yaml'
+    pulse_path = 'Simulations/CPhase/yamls/pulses/fluxonium_idealgridium_hard.yaml'
+    syscfg_path = 'Simulations/CPhase/yamls/syscfgs/fluxonium_idealgridium_hard.yaml'
 
     with open(pulse_path, 'r') as f:
         data = yaml.safe_load(f)
@@ -120,7 +126,7 @@ if __name__=='__main__':
         del data
 
     fluxonium = Fluxonium(**light_fluxonium_params, **std_fluxonium_sim_params)
-    gridium = IdealGridium(**soft_IdealGridium_params, **std_IdealGridium_sim_params)
+    gridium = IdealGridium(**hard_IdealGridium_params, **std_IdealGridium_sim_params)
     gridium.nlev = 6
     fluxonium.nlev = 4
 

@@ -14,6 +14,166 @@ import scipy.special
 import qutip as qt
 
 # TODO: For a two photon drive, I need something that basically looks like this H_drive_coeff_gate function but takes in twice the number of parameters and outputs just the sum of the two sin/cos functions. This seems, roughly speaking, actually simple to implement, though I still need to better understand the normalization/DRAG considerations here. Moreoever, with these many parameters, it almost certainly would be better served with a YAML file. Need to consider refactoring.
+def H_two_photon_drive_coeff_gate(t, args):
+    args = args['kwargs']
+    args_1 = args[0]
+    args_2 = args[1]
+    drive_1 = H_drive_coeff_gate(t, args_1)
+    drive_2 = H_drive_coeff_gate(t, args_2)
+    drive_total = drive_1 + drive_2
+    return drive_total
+
+# def H_two_photon_drive_coeff_gate(t, args):
+#     #Basically a dupe of H_drive_coeff_gate with two drives
+
+#     if 'T_start_1' in args:
+#         T_start_1 = args['T_start_1']
+#     else:
+#         T_start_1 = 0
+
+#     if 'shape_1' in args:
+#         shape_1 = args['shape_1']
+#     else:
+#         shape_1 = 'square'
+
+#     if 'sigma_1' in args:
+#         sigma_1 = args['sigma_1']
+#     else:
+#         sigma_1 = 0.25
+
+#     if 'theta_1' in args:
+#         theta_1 = args['theta_1']
+#     else:
+#         theta_1 = 2 * np.pi
+
+#     if 'phi_1' in args:
+#         phi_1 = args['phi_1']
+#     else:
+#         phi_1 = 0
+
+#     if 'DRAG_1' in args and args['DRAG_1']:
+#         alpha_1 = args['DRAG_coefficient_1']
+#     else:
+#         alpha_1 = 0
+#     if 'SYMM_1' in args and args['SYMM_1']:
+#         beta_1 = args['SYMM_coefficient_1']
+#     else:
+#         beta_1 = 0
+
+#     if 'T_start_2' in args:
+#         T_start_2 = args['T_start_2']
+#     else:
+#         T_start_2 = T_start_1
+
+#     if 'shape_2' in args:
+#         shape_2 = args['shape_2']
+#     else:
+#         shape_2 = shape_1
+
+#     if 'sigma_2' in args:
+#         sigma_2 = args['sigma_2']
+#     else:
+#         sigma_2 = sigma_1
+
+#     if 'theta_2' in args:
+#         theta_2 = args['theta_2']
+#     else:
+#         theta_2 = theta_1
+
+#     if 'phi_2' in args:
+#         phi_2 = args['phi_2']
+#     else:
+#         phi_2 = phi_1
+
+#     if 'DRAG_2' in args and args['DRAG_2']:
+#         alpha_2 = args['DRAG_coefficient_2']
+#     else:
+#         alpha_2 = alpha_1
+#     if 'SYMM_2' in args and args['SYMM_2']:
+#         beta_2 = args['SYMM_coefficient_2']
+#     else:
+#         beta_2 = beta_1
+
+#     nu_d_1 = args['omega_d_1']
+#     nu_d_2 = args['omega_d_2']
+
+#     two_pi_t1_1 = 2 * np.pi * t
+#     two_pi_t2_1 = 2 * np.pi * (t - T_start_1)
+#     two_pi_t1_2 = 2 * np.pi * t
+#     two_pi_t2_2 = 2 * np.pi * (t - T_start_2)
+#     T_gate_1 = args['T_gate_1']
+#     T_gate_2 = args['T_gate_2']
+
+#     if shape_1 == 'gaussflattop' and T_gate < 2 * args['T_rise']:
+#         shape = 'gauss'
+#         sigma = sigma * args['T_rise'] / T_gate
+
+#     # Here xi_x and xi_y are normalized assuming theta = 2 * pi.    
+#     if shape == 'square':
+#         xi_x = 2 * np.pi / T_gate
+#         xi_y = 0
+#     elif shape == 'gaussflattop':
+#         T_rise = args['T_rise']
+#         sigma = sigma * T_rise
+#         T_left = T_start + T_rise
+#         T_right = T_start + T_gate - T_rise
+#         # Without shift and normalization.
+#         if t < T_left:
+#             xi_x = np.exp(- 0.5 * ((t - T_left) / sigma) ** 2)
+#             xi_y = (alpha * (- (t - T_left) / sigma ** 2)
+#                     * np.exp(- 0.5 * ((t - T_left) / sigma) ** 2))
+#         elif t > T_right:
+#             xi_x = np.exp(- 0.5 * ((t - T_right) / sigma) ** 2)
+#             xi_y = (alpha * (- (t - T_right) / sigma ** 2)
+#                     * np.exp(- 0.5 * ((t - T_right) / sigma) ** 2))
+#         else:
+#             xi_x = 1
+#             xi_y = 0
+#         # Shift to ensure that we start and end at zero.
+#         xi_x -= np.exp(-0.5 * (T_rise / sigma) ** 2)
+#         # Normalization.
+#         if 'normalization_flat' in args and args['normalization_flat']:
+#             # Normalize as if it were a square pulse.
+#             coeff = 2 * np.pi / (T_gate * (1 - np.exp(-0.5 * (T_rise / sigma) ** 2)))
+#             xi_x *= coeff
+#             xi_y *= coeff
+#         else:
+#             # Normalize ``the usual way''.
+#             integral_value = (np.sqrt(2 * np.pi) * sigma
+#                               * scipy.special.erf(
+#                         T_rise / (np.sqrt(2) * sigma))
+#                               + T_gate - 2 * T_rise
+#                               - T_gate * np.exp(-0.5 * (T_rise / sigma) ** 2))
+#             xi_x *= 2 * np.pi / integral_value
+#             xi_y *= 2 * np.pi / integral_value
+
+#     elif shape == 'cos':
+#         xi_x = (2 * np.pi / T_gate) * (1 - np.cos(two_pi_t2 / T_gate))
+#         xi_x += beta * (2 * np.pi / T_gate) ** 3 * np.cos(two_pi_t2 / T_gate)
+#         xi_y = 4 * alpha * np.pi ** 2 / T_gate ** 2 * np.sin(two_pi_t2 / T_gate)
+#     elif shape == 'gauss':
+#         sigma = sigma * T_gate
+#         integral_value = (np.sqrt(2 * np.pi) * sigma
+#                           * scipy.special.erf(
+#                     T_gate / (2 * np.sqrt(2) * sigma))
+#                           - T_gate * np.exp(-0.5 * (0.5 * T_gate / sigma) ** 2))
+#         coeff = 2 * np.pi / integral_value
+#         T_mid = T_start + T_gate / 2
+#         xi_x = coeff * (np.exp(- 0.5 * ((t - T_mid) / sigma) ** 2)
+#                         - np.exp(-0.5 * (0.5 * T_gate / sigma) ** 2))
+#         xi_x += (beta * coeff * (-1 / sigma ** 2 + ((t - T_mid) / sigma ** 2) ** 2)
+#                  * np.exp(- 0.5 * ((t - T_mid) / sigma) ** 2))
+#         xi_y = (alpha * coeff * (- (t - T_mid) / sigma ** 2)
+#                 * np.exp(- 0.5 * ((t - T_mid) / sigma) ** 2))
+#     elif shape == 'two_phot_sin':
+#         xi_x = np.sqrt(2) * (2 * np.pi / T_gate) * np.sin(two_pi_t2 / T_gate)
+#         xi_y = 0
+#     else:
+#         raise Exception('Urecognized pulse shape.')
+
+#     return (xi_x * np.cos(two_pi_t1 * nu_d + phi)
+#             + xi_y * np.sin(two_pi_t1 * nu_d + phi)) * theta / (2 * np.pi)
+
 
 def H_drive_coeff_gate(t, args):
     r'''
@@ -386,7 +546,7 @@ def evolution_psi_microwave_nonorm_diss(
     return result.states
 
 def evolution_operator_microwave(
-        H_nodrive, H_drive, t_points=None, **kwargs):
+        H_nodrive:qt.Qobj, H_drive:qt.Qobj, t_points=None, **kwargs):
     """
     Calculates the unitary evolution operator for a gate activated by
     a microwave drive.
@@ -413,9 +573,45 @@ def evolution_operator_microwave(
         T_gate = kwargs['T_gate']
         t_points = np.linspace(0, T_gate, 2 * int(T_gate) + 1)
 
+    if not H_nodrive.check_herm():
+        # raise Warning('Coupled system hamiltonian is not Hermitian!')
+        pass
+    if not H_drive.check_herm():
+        raise Exception('Drive term is not hermitian!')
+
     H = [2 * np.pi * H_nodrive, [H_drive, H_drive_coeff_gate]]
-    U_t = qt.propagator(H, t_points, [], args=kwargs, options={'nsteps': 1000, 'progress_bar': 'tqdm', 'normalize_output': False}) # NOTE: If the simulation blows up at the end, increase the nsteps
+    U_t = qt.propagator(H, t_points, [], args=kwargs, options={'nsteps': 20000, 'progress_bar': 'tqdm', 'normalize_output': False}) # NOTE: If the simulation blows up at the end, increase the nsteps
     
+    U_t = np.asarray(U_t)
+    return U_t
+
+def evolution_operator_2phot_microwave(
+        H_nodrive, H_drive, t_points=None, **kwargs):
+    """
+    Calculates the unitary evolution operator for a gate activated by
+    a microwave drive.
+
+    Parameters
+    ----------
+    H_nodrive : :class:`qutip.Qobj`
+        The Hamiltonian without the drive term.
+    H_drive : :class:`qutip.Qobj`
+        The time-independent part of the driving term.
+        Example: f * (a + a.dag()) or f * qubit.n()
+        Normalization: see `H_drive_coeff_gate` function.
+    t_points : *array* of float (optional)
+        Times at which the evolution operator is returned.
+        If None, it is generated from `kwargs['T_gate']`.
+    **kwargs:
+        Contains gate parameters such as pulse shape and gate time.
+    Returns
+    -------
+    U_t : *array* of :class:`qutip.Qobj`
+        The evolution operator at time(s) defined in `t_points`.
+    """
+    
+    H = [2 * np.pi * H_nodrive, [H_drive, H_two_photon_drive_coeff_gate]]
+    U_t = qt.propagator(H, t_points, [], args=kwargs, options={'nsteps': 10000, 'progress_bar': 'tqdm', 'normalize_output': False}) # NOTE: If the simulation blows up at the end, increase the nsteps
     U_t = np.asarray(U_t)
     return U_t
 

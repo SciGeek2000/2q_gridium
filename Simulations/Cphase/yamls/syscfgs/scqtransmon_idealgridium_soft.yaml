@@ -11,11 +11,11 @@ J_C:
 interaction:
   'on'
 coupling_type:
-  'charge'
+  'flux'
 computational_space:
   ['00', '01', '10', '11']
 transitions_to_drive:
-  ['00', '03']
+  ['00', '03'] # ['00', '02'] if doing flux coupling
 detuned_transitions:
   ['10', '13']
 comparitive_transitions:

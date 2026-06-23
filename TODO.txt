@@ -14,12 +14,19 @@ Objectives as of 2/18/2025:
 2.) Clean up main.ipynb
     - DONE!
 3.) Generate plots comparing transmon couplings and fluxonium couplings for a more convincing argument
+    - Bottle neck from accumulating errors when using a flux coupling, in particular for any hard gridiums. This only seems to occur for the scqubits implementation, so this may be a hint.
 4.) Look at the matrix elements of the composite system. This will be very instructive as to which transitions are drivable. Should be done in a seperate coupobj_test file.
+    - DONE!
 5.) Have matrix elements be plotted according to the four transitions that I'm actually interested in -- so a function that takes in tuples and only displays those
+    - DONE!
+6.) Create the coupobj tests -- something which identifies the issues with the simulation
 
 BUG: qubit simulations become poorly behaved at long time scales. Seems to be a combination of too small nlevs and too small nsteps for propegator.
     - Resolved! This is from complex components seeping in. I am using np.real but could also use np.abs
 BUG: Assess every case of using np.abs and think about if it should instead be np.real
+BUG: All my hamiltonians have the attribute "ishermitian" which sometimes comes up as false (like IdealGridium.H()). Is there a way to enforce this as true?
+    - Yes, can artifically make any matrix hermitian by averaging with it's .dag() (new = (old + old.dag())/2), though this only get's you the 'closest' hermitian matrix, not nec. the one you are looking for.
+
 
 FEATURES:
 - How to have sub-ns precision for the simulations? An open question.
