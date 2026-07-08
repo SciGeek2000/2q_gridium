@@ -1,0 +1,14 @@
+**/.DS_Store
+
+**/.vscode
+
+**/.ipynb_checkpoints
+
+**/__pycache__
+
+# Local assistant/editor state
+.claude/
+
+# Excluded simulation folders
+Simulations/four_mode_gkp/
+Simulations/Rabi_3photon/
