@@ -1,5 +1,13 @@
 """FourModeAsymGridium: exact four-mode gridium circuit model with KITE asymmetry.
 
+.. deprecated::
+    This hand reduction carries a pi/2 external-flux bookkeeping error in its
+    compact-frame construction (the PHI_EXT_PROTECTION_OFFSET below is a band-aid: it
+    aligns the protected theta_ext=pi column with the paper but leaves the theta_ext=0
+    column off by pi/2; no global offset fixes both). Verified against scqubits.Circuit
+    built from the paper authors' netlist. Use the corrected, netlist-derived
+    ``Circuit_Objs.qchard_gridium_netlist.Gridium4Mode`` instead.
+
 Implements the exact four-mode circuit Hamiltonian of the gridium device:
 
     H = 2 E_C n_Sigma^2 + 2 E_C_delta n_Delta^2 + 4 E_CS n_S^2 + 4 eps_p n_phi^2          (4)
@@ -8,6 +16,12 @@ Implements the exact four-mode circuit Hamiltonian of the gridium device:
         + E_LK [ (phi_Sigma - phi)^2 + (phi_Delta - theta_ext/2)^2 ]
         - 2 eps_LK E_LK (phi_Sigma - phi)(phi_Delta - theta_ext/2)                        (6)
         + E_L (phi_S - phi + phi_ext)^2                                                   (7)
+
+Flux gauge: Eqs. (5)/(7) place the external flux phi_ext in the superinductor. The code uses the
+gauge-equivalent form that moves phi_ext onto the QPS (phase slip), -E_JS cos(phi_S - phi_ext) with
+E_L (phi_S - phi)^2, i.e. the paper's Eq. S23/S26 form. This is manifestly periodic in phi_ext
+(the compact island carries the flux), whereas keeping phi_ext in the superinductor and expanding
+the extended node harmonically introduces a linear grid tilt that drifts non-periodically.
 
 Four modes:
 
@@ -100,6 +114,16 @@ device_FourModeAsymGridium_params = {
     'E_C_delta': 0.492, # Delta-mode charging, e^2/2(C_J + C_K/2), derived via paper Eq. S30
     'eps_p': 1.0,       # parasitic node capacitance energy
 }
+
+# External-flux reference. phi_ext = 0 is the protection bias, matching the paper's Fig. S5 /
+# Eq. 2 convention (the QPS charge dispersion is flattest and the (0,1) doublet degenerate here).
+# In the raw flux variable the protected point sits a quarter flux quantum away:
+# the grid confinement then lands on an extremum of the *emergent* cos(2 phi) quartet lattice
+# (which the second-order KITE process produces with a fixed sign). So the flux that actually
+# enters the Hamiltonian is phi_ext + pi/2. Verified: without this offset the (0,1) splitting is
+# ~1.2 GHz at "phi_ext=0" (an anti-sweet-spot) and dips to ~20 MHz at pi/2; the offset is rigid
+# (regimes a and d both minimize at the same pi/2) and matches the effective 1-mode model (Eq. 2).
+PHI_EXT_PROTECTION_OFFSET = 0.5 * np.pi
 
 # Standard operating/simulation conditions. Protection bias is (phi_ext, theta_ext) = (0, pi).
 std_FourModeAsymGridium_sim_params = {
@@ -203,6 +227,8 @@ class FourModeAsymGridium(object):
         self.eps_LK = eps_LK
         self.ng = ng
         self.phi_ext = phi_ext
+        # Internal flux entering Eq. (7); see PHI_EXT_PROTECTION_OFFSET. phi_ext = 0 -> protection.
+        self._phi_ext_eff = phi_ext + PHI_EXT_PROTECTION_OFFSET
         self.theta_ext = theta_ext
         self.nlev = nlev
         self.n_charge = n_charge
@@ -332,12 +358,16 @@ class FourModeAsymGridium(object):
         f4 = (A4 / (4 * B4)) ** 0.25
         g4 = 1.0 / (2 * f4)
         a4 = np.diag(np.sqrt(np.arange(1, N4)), 1)
-        u40 = -self.E_L * self.phi_ext / B4
+        # Periodic (S23) gauge: the external flux is carried by the phase-slip cosine
+        # -E_JS cos(phi_S - phi_ext) (assembled in _diagonalize), NOT the superinductor. The node
+        # equilibrium is therefore not shifted by flux (u40 = 0). This removes the linear grid tilt
+        # that made the old inductor-flux gauge drift non-periodically across phi_ext; the spectrum
+        # is now exactly periodic (matching the paper's Eq. S23/S26 and s26_reference).
+        u40 = 0.0
         ops['v4'] = f4 * (a4 + a4.T)
         ops['m4'] = 1j * g4 * (a4.T - a4)
         ops['u40'] = u40
-        ops['w4'] = (2 * np.sqrt(A4 * B4) * (np.arange(N4) + 0.5)
-                     + self.E_LK * u40 ** 2 + self.E_L * (u40 + self.phi_ext) ** 2)
+        ops['w4'] = 2 * np.sqrt(A4 * B4) * (np.arange(N4) + 0.5)
         return ops
 
 
@@ -360,6 +390,7 @@ class FourModeAsymGridium(object):
         ELK, EJS, ECS = self.E_LK, self.E_JS, self.E_CS
         ECD, eJ, eLK, ng = self.E_C_delta, self.eps_J, self.eps_LK, self.ng
         u40 = o['u40']
+        phi_e = self._phi_ext_eff   # external flux; enters the phase-slip cosine (periodic gauge)
 
         def K(A, B, C):
             return sps.kron(sps.kron(A, B, format='csr'), sps.csr_matrix(C), format='csr')
@@ -377,7 +408,8 @@ class FourModeAsymGridium(object):
         H1 = (4 * ECS_scr * pg2
               + 2 * EC * K(o['I1'], o['m2sq'], o['I3'])
               + 2 * ECD * K(o['I1'], o['Ig'], o['m3'] @ o['m3'])
-              - EJS * K(o['cos1'], o['Ig'], o['I3'])
+              - EJS * (np.cos(phi_e) * K(o['cos1'], o['Ig'], o['I3'])
+                       + np.sin(phi_e) * K(o['sin1'], o['Ig'], o['I3']))
               + ELK_scr * x2full
               + ELK * K(o['I1'], o['Ig'], o['v3'] @ o['v3'])
               - 2 * EJ * (K(o['cos1'], o['cxd'], o['cos_u3'])
@@ -431,6 +463,11 @@ class FourModeAsymGridium(object):
         pg2_p = proj(pg2)
         x2_p = proj(x2full)
         m1_p = proj(K(o['m1'], o['Ig'], o['I3']))
+        # Flux-drive operator dH/dphi_ext = -E_JS sin(phi_S - phi_e) (periodic gauge): flux now
+        # sits in the phase-slip cosine, so the drive is an island operator, sin(u1 - phi_e) =
+        # cos(phi_e) sin(u1) - sin(phi_e) cos(u1).
+        dphi_island = np.cos(phi_e) * o['sin1'] - np.sin(phi_e) * o['cos1']
+        dphi_p = proj(K(dphi_island, o['Ig'], o['I3']))
 
         # Stage 2: exact coupling to the (exactly harmonic) node mode
         # Restores the (bare - screened) quadratic residuals from the stage-1 regrouping
@@ -451,6 +488,7 @@ class FourModeAsymGridium(object):
         pg2_p = herm(pg2_p)
         x2_p = herm(x2_p)
         m1_p = herm(m1_p)
+        dphi_p = herm(dphi_p)
         v4 = herm(o['v4'])
         m4 = herm(o['m4'])
         w1 = np.asarray(np.real(w1), dtype=float)
@@ -530,14 +568,14 @@ class FourModeAsymGridium(object):
         if eLK != 0.0:
             Dth_terms.append((-eLK * ELK, u2_p, I4))
             Dth_terms.append((eLK * ELK, Ik, v4 + u40 * I4))
-        Dph_terms = [(2 * EL, Ik, v4)]
+        Dph_terms = [(-EJS, dphi_p, I4)]
         phi2_terms = [(1.0, u2_p, I4)]
         n1_terms = [(1.0, m1_p, I4), (1.0, Ik, m4)]
 
         object.__setattr__(self, '_eigvals', evals)
         object.__setattr__(self, '_ops', {
             'd_theta': project_low_energy(Dth_terms),
-            'd_phi': project_low_energy(Dph_terms, scalar=2 * EL * (u40 + self.phi_ext)),
+            'd_phi': project_low_energy(Dph_terms),
             'phase_grid': project_low_energy(phi2_terms),
             'n_cap': project_low_energy(n1_terms)})
         if self.verbose:
