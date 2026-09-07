@@ -8,6 +8,7 @@ Repository map:
 - [`Simulations/`](Simulations/) contains simulation workflows. [`Simulations/Cphase/`](Simulations/Cphase/) is a structural reference for the developing [`Simulations/Rabi_3Photon/`](Simulations/Rabi_3Photon/) workflow.
 - [`Tests/`](Tests/) contains model and simulation tests.
 - [`docs/`](docs/) contains project context, conventions, decisions, open questions, and research-result provenance.
-- [`environment.yml`](environment.yml) records the Conda environment and Python dependencies.
+- [`environment-portable.yml`](environment-portable.yml) defines the portable Python 3.12 environment validated for the `IdealGridium` baseline.
+- [`environment.yml`](environment.yml) is retained as a machine-specific historical export and is not the portable baseline.
 
 Read [`AGENTS.md`](AGENTS.md) before making changes and consult the documents in [`docs/`](docs/) for deeper context.
