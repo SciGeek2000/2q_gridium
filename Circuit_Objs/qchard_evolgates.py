@@ -307,6 +307,55 @@ def H_drive_coeff_gate(t, args):
     return (xi_x * np.cos(two_pi_t1 * nu_d + phi)
             + xi_y * np.sin(two_pi_t1 * nu_d + phi)) * theta / (2 * np.pi)
 
+
+class _IndependentDriveCoefficient:
+    """Bind one tone's arguments to the existing drive coefficient."""
+
+    def __init__(self, tone_args):
+        self.tone_args = dict(tone_args)
+        self.T_start = self.tone_args.get('T_start', 0)
+        self.T_stop = self.T_start + self.tone_args['T_gate']
+
+    def __call__(self, t, args=None):
+        # ``H_drive_coeff_gate`` assumes callers restrict the integration
+        # interval.  A multitone evolution has a common time grid, so each
+        # independently timed tone must be inactive outside its own interval.
+        if t < self.T_start or t > self.T_stop:
+            return 0.0
+        return H_drive_coeff_gate(t, self.tone_args)
+
+
+def _multitone_hamiltonian(H_nodrive, drive_terms):
+    """Build QuTiP list-form Hamiltonian terms for independent drives."""
+    H = [2 * np.pi * H_nodrive]
+    for index, drive_term in enumerate(drive_terms):
+        tone = dict(drive_term)
+        try:
+            H_drive = tone.pop('operator')
+            omega_d = tone['omega_d']
+            T_gate = tone['T_gate']
+        except KeyError as exc:
+            raise ValueError(
+                "Drive term {} is missing required key {!r}.".format(
+                    index, exc.args[0])) from exc
+
+        amplitude = tone.pop('amplitude', 1.0)
+        if T_gate <= 0:
+            raise ValueError(
+                'Drive term {} must have a positive T_gate.'.format(index))
+        if not np.isfinite(omega_d):
+            raise ValueError(
+                'Drive term {} must have a finite omega_d.'.format(index))
+
+        H_drive = amplitude * H_drive
+        if not H_drive.check_herm():
+            raise ValueError(
+                'Drive operator {} is not Hermitian after amplitude scaling.'
+                .format(index))
+
+        H.append([H_drive, _IndependentDriveCoefficient(tone)])
+    return H
+
 def H_drive_coeff_gate_nonorm(t, args):
     r"""
     The time-dependent coefficient of the microwave-drive term for the qutip
@@ -584,6 +633,71 @@ def evolution_operator_microwave(
     
     U_t = np.asarray(U_t)
     return U_t
+
+
+def evolution_operator_multitone_microwave(
+        H_nodrive: qt.Qobj, drive_terms, t_points=None,
+        solver_options=None):
+    """Calculate a propagator for independent microwave-drive terms.
+
+    The time-dependent Hamiltonian is
+
+    ``2*pi*H_nodrive + sum(amplitude_k * operator_k * f_k(t))``,
+
+    where every ``f_k`` is evaluated by :func:`H_drive_coeff_gate` using
+    that tone's own arguments.  This deliberately keeps each operator and
+    coefficient in a separate QuTiP Hamiltonian term, avoiding cross terms.
+
+    Parameters
+    ----------
+    H_nodrive : :class:`qutip.Qobj`
+        Hamiltonian without the drive terms, in the same frequency convention
+        as :func:`evolution_operator_microwave`.
+    drive_terms : iterable of mappings
+        One mapping per tone.  Required keys are ``operator``, ``omega_d``,
+        and ``T_gate``.  ``amplitude`` optionally scales the operator and
+        defaults to one.  Remaining keys are the existing
+        :func:`H_drive_coeff_gate` arguments, including ``phi``, ``shape``,
+        ``sigma``, ``T_rise``, ``T_start``, ``theta``, ``DRAG``, and ``SYMM``.
+    t_points : array of float, optional
+        Common times at which the propagator is returned.  If omitted, the
+        grid runs from zero through the latest tone end time using the existing
+        ``2 * int(T) + 1`` convention.
+    solver_options : mapping, optional
+        QuTiP solver-option overrides. The established defaults are unchanged
+        when this is omitted.
+
+    Returns
+    -------
+    numpy.ndarray
+        Evolution operators at the requested times.
+    """
+    drive_terms = list(drive_terms)
+    if not drive_terms:
+        raise ValueError('At least one drive term is required.')
+
+    if t_points is None:
+        try:
+            T_final = max(
+                tone.get('T_start', 0) + tone['T_gate']
+                for tone in drive_terms)
+        except KeyError as exc:
+            raise ValueError(
+                "A drive term is missing required key {!r}.".format(
+                    exc.args[0])) from exc
+        t_points = np.linspace(0, T_final, 2 * int(T_final) + 1)
+
+    H = _multitone_hamiltonian(H_nodrive, drive_terms)
+    options = {
+        'nsteps': 20000,
+        'progress_bar': 'tqdm',
+        'normalize_output': False,
+    }
+    if solver_options is not None:
+        options.update(solver_options)
+    U_t = qt.propagator(
+        H, t_points, [], args={}, options=options)
+    return np.asarray(U_t)
 
 def evolution_operator_2phot_microwave(
         H_nodrive, H_drive, t_points=None, **kwargs):

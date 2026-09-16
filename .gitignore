@@ -12,3 +12,12 @@
 # Excluded simulation folders
 Simulations/four_mode_gkp/
 Simulations/Rabi_3photon/
+
+# Local prompt/research infrastructure
+docs/
+research/
+
+# Local research references
+references/
+
+AGENTS.md
