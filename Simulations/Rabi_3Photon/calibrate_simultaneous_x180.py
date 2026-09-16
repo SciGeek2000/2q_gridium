@@ -47,6 +47,10 @@ def _bounds(search_config):
 
 
 def _baseline_vector(experiment):
+    if 'search_start' in experiment:
+        return np.array([
+            experiment['search_start'][name]
+            for name in PARAMETER_NAMES], dtype=float)
     pulse = experiment['pulse']
     return np.array([
         pulse['amplitude'], pulse['amplitude'], pulse['amplitude'],
@@ -283,6 +287,7 @@ def _print_results(experiment, results, front, correlations):
             candidate['logical_gate_fidelity'],
             candidate['final_leakage'], candidate['peak_leakage'],
             candidate['id']))
+        print('  {}'.format(_format_parameters(candidate)))
 
     print('\nAbsolute Spearman correlations: parameter | fidelity | final_leakage')
     ordered = sorted(

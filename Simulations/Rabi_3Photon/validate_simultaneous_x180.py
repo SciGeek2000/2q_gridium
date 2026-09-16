@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
+from Circuit_Objs.qchard_statetracking import track_eigensystems
 from Simulations.Rabi_3Photon import calibrate_simultaneous_x180 as calibration
 from Simulations.Rabi_3Photon import compare_x180_protocols as comparison
 from Simulations.Rabi_3Photon import workflow_funcs as workflow
@@ -44,9 +45,28 @@ def _time_points(duration, samples_per_ns):
     return np.linspace(0, duration, intervals + 1)
 
 
+def _align_to_reference_basis(propagators, reference_qubit, qubit):
+    tracking = track_eigensystems(
+        reference_qubit.levels(nlev=qubit.nlev),
+        reference_qubit.eigvecs(nlev=qubit.nlev),
+        qubit.levels(), qubit.eigvecs(),
+        minimum_overlap=0.5,
+        ambiguity_margin=0.05,
+        degeneracy_atol=1e-4,
+        degeneracy_rtol=1e-9)
+    if tracking.has_unresolved_ambiguity:
+        raise ValueError(
+            'Unresolved eigensystem tracking ambiguity: {}'.format(
+                tracking.ambiguities))
+    return np.asarray([
+        tracking.transform_operator(propagator)
+        for propagator in propagators
+    ])
+
+
 def evaluate_case(
         qubit, experiment, parameters, samples_per_ns,
-        solver_options=TIGHT_OPTIONS):
+        solver_options=TIGHT_OPTIONS, logical_basis_reference=None):
     t_points = _time_points(parameters[5], samples_per_ns)
     with contextlib.redirect_stderr(io.StringIO()):
         _, propagators = workflow.solve_pulse_schedule(
@@ -54,6 +74,9 @@ def evaluate_case(
             mute=True, solver_options=solver_options, t_points=t_points)
     interaction_propagators = comparison._interaction_picture(
         qubit, t_points, propagators)
+    if logical_basis_reference is not None:
+        interaction_propagators = _align_to_reference_basis(
+            interaction_propagators, logical_basis_reference, qubit)
     metrics = workflow.evaluate_logical_gate(
         interaction_propagators, experiment['target'], t_points=t_points)
     final = interaction_propagators[-1]
@@ -75,10 +98,10 @@ def _metric_row(result):
         metrics['peak_leakage'], result['unitarity_residual'])
 
 
-def _coherence_checks(result):
+def _coherence_checks(result, target_name):
     propagator = result['propagators'][-1].full()
     dimension = propagator.shape[0]
-    target = workflow.logical_gate_target('X180').full()
+    target = workflow.logical_gate_target(target_name).full()
     logical_inputs = {
         '0': np.array([1, 0], dtype=complex),
         '1': np.array([0, 1], dtype=complex),
@@ -143,6 +166,8 @@ def run_validation(config_path=DEFAULT_CONFIG):
     experiment = comparison._load_config(config_path)
     validation = experiment['validation']
     parameters = _candidate_vector(experiment)
+    max_levels = max(validation['retained_levels'])
+    logical_basis_reference = _qubit(experiment, max_levels, 230)
 
     solver_qubit = _qubit(experiment, 8, 230)
     solver_cases = {}
@@ -154,26 +179,29 @@ def run_validation(config_path=DEFAULT_CONFIG):
             ('tight_8_per_ns', TIGHT_OPTIONS, 8)):
         solver_cases[name] = evaluate_case(
             solver_qubit, experiment, parameters, rate,
-            solver_options=options)
+            solver_options=options,
+            logical_basis_reference=logical_basis_reference)
 
     retained_level_cases = {}
     for nlev in validation['retained_levels']:
         retained_level_cases[nlev] = evaluate_case(
-            _qubit(experiment, nlev, 230), experiment, parameters, 8)
+            _qubit(experiment, nlev, 230), experiment, parameters, 8,
+            logical_basis_reference=logical_basis_reference)
 
     lc_cutoff_cases = {}
-    max_levels = max(validation['retained_levels'])
     for cutoff in validation['lc_cutoffs']:
         lc_cutoff_cases[cutoff] = evaluate_case(
             _qubit(experiment, max_levels, cutoff),
-            experiment, parameters, 8)
+            experiment, parameters, 8,
+            logical_basis_reference=logical_basis_reference)
 
     reference = lc_cutoff_cases[max(validation['lc_cutoffs'])]
     robustness = []
     for name, direction, step, varied in _robustness_cases(
             parameters, validation):
         result = evaluate_case(
-            reference['qubit'], experiment, varied, 4)
+            reference['qubit'], experiment, varied, 4,
+            logical_basis_reference=logical_basis_reference)
         robustness.append({
             'parameter': name,
             'direction': direction,
@@ -188,7 +216,7 @@ def run_validation(config_path=DEFAULT_CONFIG):
         'retained_level_cases': retained_level_cases,
         'lc_cutoff_cases': lc_cutoff_cases,
         'reference': reference,
-        'coherence': _coherence_checks(reference),
+        'coherence': _coherence_checks(reference, experiment['target']),
         'level_populations': _level_populations(reference),
         'robustness': robustness,
     }
