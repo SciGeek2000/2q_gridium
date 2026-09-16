@@ -27,6 +27,7 @@ __all__ = [
     'evaluate_logical_gate',
     'state_qubit_state',
     'solve',
+    'solve_pulse_schedule',
     'solve_multitone_drive',
     'solve_two_photon_drive',
     'solve_three_tone_drive',
@@ -292,6 +293,10 @@ def state_qubit_state(
     """Print the targeted transition and resolved carrier for each tone."""
     _require_idealgridium(qubit)
     configs = _coerce_pulse_configs(pulse_cfg1, pulse_cfg2, pulse_cfg3)
+    _print_pulse_configs(qubit, configs)
+
+
+def _print_pulse_configs(qubit: IdealGridium, configs):
     for index, config in enumerate(configs, start=1):
         initial, final = config.targeted_drive
         print(
@@ -316,18 +321,57 @@ def solve(
         raise ValueError("Only solve_method='propagator' is implemented.")
 
     configs = _coerce_pulse_configs(pulse_cfg1, pulse_cfg2, pulse_cfg3)
+    return solve_pulse_schedule(qubit, configs, mute=mute)
+
+
+def solve_pulse_schedule(
+        qubit: IdealGridium,
+        pulse_configs: Sequence[PulseConfig],
+        mute: bool = False,
+        solver_options=None,
+        t_points=None):
+    """Execute a schedule of pulse events using at most three unique tones.
+
+    A tone may appear in more than one time window, as required by staged
+    protocols. Distinct tones are identified by their targeted transition,
+    resolved carrier frequency, and carrier phase.
+    """
+    _require_idealgridium(qubit)
+    configs = list(pulse_configs)
+    if not configs:
+        raise ValueError('A pulse schedule must contain at least one event.')
+    if not all(isinstance(config, PulseConfig) for config in configs):
+        raise TypeError('Every pulse event must be a PulseConfig.')
+
+    unique_tones = {
+        (tuple(config.targeted_drive), _carrier_frequency(qubit, config))
+        for config in configs
+    }
+    if len(unique_tones) > 3:
+        raise ValueError('A pulse schedule may contain at most three tones.')
+
     phi_operator = qubit.phi()
     drive_terms = [
         _pulse_to_drive_term(qubit, config, phi_operator)
         for config in configs
     ]
     final_time = max(config.T_start + config.T_gate for config in configs)
-    t_points = np.linspace(0, final_time, 2 * int(final_time) + 1)
+    if t_points is None:
+        t_points = np.linspace(0, final_time, 2 * int(final_time) + 1)
+    else:
+        t_points = np.asarray(t_points, dtype=float)
+        if (t_points.ndim != 1 or len(t_points) < 2
+                or not np.isclose(t_points[0], 0)
+                or not np.isclose(t_points[-1], final_time)
+                or np.any(np.diff(t_points) <= 0)):
+            raise ValueError(
+                't_points must increase from zero through the schedule end.')
     U_t = gates.evolution_operator_multitone_microwave(
-        qubit.H(), drive_terms, t_points=t_points)
+        qubit.H(), drive_terms, t_points=t_points,
+        solver_options=solver_options)
 
     if not mute:
-        state_qubit_state(qubit, configs)
+        _print_pulse_configs(qubit, configs)
     return t_points, U_t
 
 

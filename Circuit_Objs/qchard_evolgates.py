@@ -636,7 +636,8 @@ def evolution_operator_microwave(
 
 
 def evolution_operator_multitone_microwave(
-        H_nodrive: qt.Qobj, drive_terms, t_points=None):
+        H_nodrive: qt.Qobj, drive_terms, t_points=None,
+        solver_options=None):
     """Calculate a propagator for independent microwave-drive terms.
 
     The time-dependent Hamiltonian is
@@ -662,6 +663,9 @@ def evolution_operator_multitone_microwave(
         Common times at which the propagator is returned.  If omitted, the
         grid runs from zero through the latest tone end time using the existing
         ``2 * int(T) + 1`` convention.
+    solver_options : mapping, optional
+        QuTiP solver-option overrides. The established defaults are unchanged
+        when this is omitted.
 
     Returns
     -------
@@ -684,10 +688,15 @@ def evolution_operator_multitone_microwave(
         t_points = np.linspace(0, T_final, 2 * int(T_final) + 1)
 
     H = _multitone_hamiltonian(H_nodrive, drive_terms)
+    options = {
+        'nsteps': 20000,
+        'progress_bar': 'tqdm',
+        'normalize_output': False,
+    }
+    if solver_options is not None:
+        options.update(solver_options)
     U_t = qt.propagator(
-        H, t_points, [], args={},
-        options={'nsteps': 20000, 'progress_bar': 'tqdm',
-                 'normalize_output': False})
+        H, t_points, [], args={}, options=options)
     return np.asarray(U_t)
 
 def evolution_operator_2phot_microwave(
