@@ -23,6 +23,8 @@ __all__ = [
     'PulseConfig',
     'load_qubit',
     'load_pulse_config',
+    'logical_gate_target',
+    'evaluate_logical_gate',
     'state_qubit_state',
     'solve',
     'solve_multitone_drive',
@@ -158,6 +160,128 @@ def _pulse_to_drive_term(
     if pulse_cfg.T_rise is not None:
         drive_term['T_rise'] = pulse_cfg.T_rise
     return drive_term
+
+
+def logical_gate_target(target: str) -> qt.Qobj:
+    """Return the requested target in the ordered logical basis ``|0>, |1>``.
+
+    ``X180`` is Pauli X. ``X90`` is ``exp(-i*pi*X/4)``. Their physically
+    irrelevant global phases are ignored by :func:`evaluate_logical_gate`.
+    """
+    target_name = target.upper()
+    pauli_x = np.array([[0, 1], [1, 0]], dtype=complex)
+    if target_name == 'X180':
+        matrix = pauli_x
+    elif target_name == 'X90':
+        matrix = (np.eye(2) - 1j * pauli_x) / np.sqrt(2)
+    else:
+        raise ValueError("target must be either 'X180' or 'X90'.")
+    return qt.Qobj(matrix)
+
+
+def evaluate_logical_gate(U_t, target: str, t_points=None) -> dict:
+    """Evaluate logical action and leakage for a propagator trajectory.
+
+    The final logical action is the 2-by-2 block ``A = P U(T) P`` in the
+    ordered basis ``|0>, |1>``. Logical process fidelity is the normalized,
+    phase-insensitive Hilbert--Schmidt overlap
+
+    ``|Tr(V.dag() A)|^2 / (2 Tr(A.dag() A))``,
+
+    where ``V`` is the requested target. Logical gate fidelity is its standard
+    single-qubit Haar-average conversion ``(2 F_process + 1) / 3``. These
+    condition out uniform loss from the logical block so gate-shape quality
+    and leakage remain separate. Both values are defined as zero when the
+    final logical block has zero norm.
+
+    Leakage for input ``|j>`` is the explicitly summed population in levels
+    2 and above. Aggregate leakage is the arithmetic mean for inputs ``|0>``
+    and ``|1>``. Final and peak aggregate leakage are both returned, together
+    with state-resolved population and leakage trajectories.
+    """
+    propagators = [U_t] if isinstance(U_t, qt.Qobj) else list(U_t)
+    if not propagators:
+        raise ValueError('U_t must contain at least one propagator.')
+
+    matrices = []
+    dimension = None
+    for propagator in propagators:
+        matrix = (
+            propagator.full() if isinstance(propagator, qt.Qobj)
+            else np.asarray(propagator, dtype=complex))
+        if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+            raise ValueError('Every propagator must be a square matrix.')
+        if matrix.shape[0] < 2:
+            raise ValueError('Every propagator must contain levels |0> and |1>.')
+        if dimension is None:
+            dimension = matrix.shape[0]
+        elif matrix.shape != (dimension, dimension):
+            raise ValueError('All propagators must have the same dimension.')
+        matrices.append(matrix)
+
+    if t_points is not None:
+        times = np.asarray(t_points, dtype=float)
+        if times.ndim != 1 or len(times) != len(matrices):
+            raise ValueError('t_points must match the propagator trajectory.')
+    else:
+        times = None
+
+    target_operator = logical_gate_target(target)
+    target_matrix = target_operator.full()
+    logical_action = matrices[-1][:2, :2]
+    logical_norm = float(np.trace(
+        logical_action.conj().T @ logical_action).real)
+    if np.isclose(logical_norm, 0.0):
+        logical_process_fidelity = 0.0
+        logical_fidelity = 0.0
+    else:
+        overlap = np.trace(target_matrix.conj().T @ logical_action)
+        logical_process_fidelity = float(
+            abs(overlap) ** 2 / (2 * logical_norm))
+        logical_process_fidelity = float(np.clip(
+            logical_process_fidelity, 0.0, 1.0))
+        logical_fidelity = (2 * logical_process_fidelity + 1) / 3
+
+    state_diagnostics = {}
+    state_leakage = []
+    for initial in (0, 1):
+        logical_populations = np.asarray([
+            np.abs(matrix[:2, initial]) ** 2 for matrix in matrices])
+        leakage = np.asarray([
+            np.sum(np.abs(matrix[2:, initial]) ** 2)
+            for matrix in matrices], dtype=float)
+        total_probability = np.asarray([
+            np.sum(np.abs(matrix[:, initial]) ** 2)
+            for matrix in matrices], dtype=float)
+        peak_index = int(np.argmax(leakage))
+        state_diagnostics[initial] = {
+            'logical_populations': logical_populations,
+            'leakage': leakage,
+            'total_probability': total_probability,
+            'final_leakage': float(leakage[-1]),
+            'peak_leakage': float(leakage[peak_index]),
+            'peak_leakage_index': peak_index,
+            'peak_leakage_time': (
+                None if times is None else float(times[peak_index])),
+        }
+        state_leakage.append(leakage)
+
+    leakage_by_time = np.mean(np.asarray(state_leakage), axis=0)
+    peak_index = int(np.argmax(leakage_by_time))
+    return {
+        'target': target.upper(),
+        'target_operator': target_operator,
+        'logical_action': qt.Qobj(logical_action),
+        'logical_process_fidelity': logical_process_fidelity,
+        'logical_gate_fidelity': logical_fidelity,
+        'leakage_by_time': leakage_by_time,
+        'final_leakage': float(leakage_by_time[-1]),
+        'peak_leakage': float(leakage_by_time[peak_index]),
+        'peak_leakage_index': peak_index,
+        'peak_leakage_time': (
+            None if times is None else float(times[peak_index])),
+        'state_diagnostics': state_diagnostics,
+    }
 
 
 def state_qubit_state(
