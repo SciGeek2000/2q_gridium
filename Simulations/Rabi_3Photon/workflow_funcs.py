@@ -1,285 +1,282 @@
-'''
-A set of helper functions for a CPhase simulation. To be used in conjunction with the main.ipynb
-in the same directory
+"""IdealGridium flux-drive helpers for the Rabi_3Photon workflow.
 
-Author: Thomas Ersevim, 2026
-'''
+This module only supplies drive plumbing. It does not select a three-photon
+pathway, calibrate a flux line, or optimize pulse parameters.
+"""
 
-import sys
-sys.path.append('Users/thomasersevim/anaconda3')
-sys.path.append('/Users/thomasersevim/QNL/2q_gridium/')
+from __future__ import annotations
 
-import os
-import numpy as np
-import scipy
-import yaml
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable, Sequence
+
 import dill
-import copy
-from scipy.optimize import minimize
-from dataclasses import dataclass, asdict
 from matplotlib import pyplot as plt
-from IPython.display import display, Latex
+import numpy as np
 import qutip as qt
+import yaml
 
-from Circuit_Objs import qchard_evolgates as gates;
-from Circuit_Objs.qchard_coupobj import CoupledObjects
-from Circuit_Objs.qchard_idealgridium import *
-from Circuit_Objs.qchard_fluxonium import *
-from Circuit_Objs.qchard_abstractobj import AbstractQubit
+from Circuit_Objs import qchard_evolgates as gates
+from Circuit_Objs.qchard_idealgridium import IdealGridium
 
-__all__ = ['PulseConfig', 'load_qubit', 'state_qubit_state', 'solve',
-           'visualize_state_propagation', 'solve_two_photon_drive']
+__all__ = [
+    'PulseConfig',
+    'load_qubit',
+    'load_pulse_config',
+    'state_qubit_state',
+    'solve',
+    'solve_multitone_drive',
+    'solve_two_photon_drive',
+    'solve_three_tone_drive',
+    'visualize_state_propagation',
+]
+
 
 @dataclass
 class PulseConfig:
-    T_gate: int
+    """Configuration for one independently timed flux-drive tone.
+
+    Frequencies and detunings are in GHz, and times are in ns. If
+    ``drive_frequency`` is omitted, the carrier is the absolute targeted
+    IdealGridium transition frequency plus ``drive_detuning``. If it is
+    supplied, the detuning is added to that explicit carrier instead.
+    """
+
+    T_gate: float
     pulse_shape: str
-    T_rise: int
-    pulse_sigma: float
-    DRAG: bool
-    DRAG_coeff: float
-    drive_amplitude_factor: float
-    targeted_drive: list
-    drive_type: str # flux, charge
-    drive_detuning: float
+    targeted_drive: Sequence[int]
+    drive_amplitude_factor: float = 1.0
+    drive_detuning: float = 0.0
+    carrier_phase: float = 0.0
+    T_start: float = 0.0
+    T_rise: float | None = None
+    pulse_sigma: float = 0.25
+    DRAG: bool = False
+    DRAG_coeff: float = 0.0
+    drive_frequency: float | None = None
+    drive_type: str = 'flux'
 
-def load_qubit(qubit:AbstractQubit, dir:str='/Users/thomasersevim/QNL/2q_gridium/etc/qubits/'):
-    # Attempt to load the qubits (pre-diagonalized) from a file if it exists
+    def __post_init__(self):
+        # The original YAML files use the scalar ``None``, which PyYAML reads
+        # as a string. Accept it as the intended absent rise time.
+        if self.T_rise == 'None':
+            self.T_rise = None
+        if len(self.targeted_drive) != 2:
+            raise ValueError('targeted_drive must contain exactly two levels.')
+        if self.T_gate <= 0:
+            raise ValueError('T_gate must be positive.')
+        if self.T_start < 0:
+            raise ValueError('T_start must be non-negative.')
 
-    qubit_path = dir+qubit._save_str()
-    if os.path.exists(qubit_path):
-        with open(qubit_path, 'rb') as f:
-            qubit = dill.load(f)
+
+def load_qubit(qubit: IdealGridium, directory: str | Path | None = None):
+    """Load a cached IdealGridium when an explicit cache directory is given."""
+    _require_idealgridium(qubit)
+    if directory is None:
+        return qubit
+
+    qubit_path = Path(directory) / qubit._save_str()
+    if qubit_path.exists():
+        with qubit_path.open('rb') as stream:
+            qubit = dill.load(stream)
+        _require_idealgridium(qubit)
     return qubit
 
-def state_qubit_state(qubit:AbstractQubit, pulse_cfg1:PulseConfig, pulse_cfg2:PulseConfig):
-    print('Pulse 1 targeting transition {} to {}: {:.3f} GHz'.format(
-        pulse_cfg1.targeted_drive[0],
-        pulse_cfg1.targeted_drive[1],
-        qubit.freq(pulse_cfg1.targeted_drive[0], pulse_cfg1.targeted_drive[1])))
-    print('Drive detuning: {}'.format(pulse_cfg1.drive_detuning))
-    print('Pulse 2 targeting transition {} to {}: {:.3f} GHz'.format(
-        pulse_cfg2.targeted_drive[0],
-        pulse_cfg2.targeted_drive[1],
-        qubit.freq(pulse_cfg2.targeted_drive[0], pulse_cfg2.targeted_drive[1])))
-    print('Drive detuning: {}'.format(pulse_cfg2.drive_detuning))
-    return
 
-def solve(qubit:AbstractQubit, pulse_cfg1:PulseConfig, pulse_cfg2:PulseConfig, comp_space=[0, 1], solve_method='propagator', mute=False):
-    
-    # Changes where the charge drive occurs and scales the drive to the size of the matrix element
-    drive_type1 = pulse_cfg1.drive_type
-    drive_type2 = pulse_cfg2.drive_type
-    amp_factor1 = pulse_cfg1.drive_amplitude_factor
-    amp_factor2 = pulse_cfg2.drive_amplitude_factor
+def load_pulse_config(path: str | Path) -> PulseConfig:
+    """Load one tone without silently changing its drive type or transition."""
+    with Path(path).open('r') as stream:
+        data = yaml.safe_load(stream)
+    if not isinstance(data, dict):
+        raise ValueError('Pulse configuration must be a YAML mapping.')
+    return PulseConfig(**data)
 
-    if drive_type1=='charge':
-        H_drive1 = qubit.n()/np.abs(qubit.n_ij(pulse_cfg1.targeted_drive[0], pulse_cfg1.targeted_drive[1]))
-    elif drive_type1=='flux':
-        H_drive1 = qubit.phi()/np.abs(qubit.phi_ij(pulse_cfg1.targeted_drive[0], pulse_cfg1.targeted_drive[1]))
-    H_drive1 = H_drive1*amp_factor1
 
-    if drive_type2=='charge':
-        H_drive2 = qubit.n()/np.abs(qubit.n_ij(pulse_cfg2.targeted_drive[0], pulse_cfg2.targeted_drive[1]))
-    elif drive_type2=='flux':
-        H_drive2 = qubit.phi()/np.abs(qubit.phi_ij(pulse_cfg2.targeted_drive[0], pulse_cfg2.targeted_drive[1]))
-    H_drive2 = H_drive2*amp_factor2
+def _require_idealgridium(qubit):
+    if not isinstance(qubit, IdealGridium):
+        raise TypeError('Rabi_3Photon currently supports IdealGridium only.')
 
-    H_drive = H_drive1 + H_drive2 # BUG: Not a valid way to combine these if they are different types of drives
 
-    omega_d1 = qubit.freq(pulse_cfg1.targeted_drive[0], pulse_cfg1.targeted_drive[1])
-    omega_d1 = np.abs(omega_d1)
-    omega_d2 = qubit.freq(pulse_cfg2.targeted_drive[0], pulse_cfg2.targeted_drive[1])
-    omega_d2 = np.abs(omega_d2)
+def _coerce_pulse_configs(
+        pulse_cfg1: PulseConfig | Sequence[PulseConfig],
+        pulse_cfg2: PulseConfig | None = None,
+        pulse_cfg3: PulseConfig | None = None) -> list[PulseConfig]:
+    if isinstance(pulse_cfg1, PulseConfig):
+        configs = [pulse_cfg1]
+    else:
+        configs = list(pulse_cfg1)
+    configs.extend(cfg for cfg in (pulse_cfg2, pulse_cfg3) if cfg is not None)
 
-    t_points1 = np.linspace(0, pulse_cfg1.T_gate, 2 * int(pulse_cfg1.T_gate) + 1)
-    t_points2 = np.linspace(0, pulse_cfg2.T_gate, 2 * int(pulse_cfg2.T_gate) + 1)
+    if not 1 <= len(configs) <= 3:
+        raise ValueError('Rabi_3Photon requires between one and three tones.')
+    if not all(isinstance(cfg, PulseConfig) for cfg in configs):
+        raise TypeError('Every tone must be a PulseConfig.')
+    return configs
 
-    p1_dict = asdict(pulse_cfg1)
-    p1_dict.update({'t_points': t_points1})
-    p1_dict.update({'omega_d': omega_d1})
-    p2_dict = asdict(pulse_cfg2)
-    p2_dict.update({'t_points': t_points2})
-    p2_dict.update({'omega_d': omega_d2})
 
-    max_t_array = t_points1 if len(t_points1) > len(t_points2) else t_points2
-    max_T_gate = pulse_cfg1.T_gate if pulse_cfg1.T_gate > pulse_cfg2.T_gate else pulse_cfg2.T_gate
+def _carrier_frequency(qubit: IdealGridium, pulse_cfg: PulseConfig) -> float:
+    initial, final = pulse_cfg.targeted_drive
+    base_frequency = pulse_cfg.drive_frequency
+    if base_frequency is None:
+        base_frequency = abs(qubit.freq(initial, final))
+    carrier = float(base_frequency) + float(pulse_cfg.drive_detuning)
+    if not np.isfinite(carrier) or carrier < 0:
+        raise ValueError('The carrier frequency must be finite and non-negative.')
+    return carrier
 
-    p_dict_list = [p1_dict, p2_dict]
 
-    if solve_method == 'propagator':
-        # This calculates the evolution operator for the whole system  
-        U_t = gates.evolution_operator_2phot_microwave(qubit.H(), H_drive, t_points=max_t_array, kwargs=p_dict_list)
-    # U_real = gates.change_operator_proj_subspace(qubit, U_t, subspace=comp_space, interaction=interaction)
-    # fidelity = gates.fidelity_cz_gate(qubit, U_t, comp_space=comp_space, interaction='off', single_gates='z') # TODO: have another method for all qubits which takes a different number of arguments to account for this interaction argument
-    # single_qubit_gates = gates.operator_single_qub_z(system, U_real[-1])
-    U_f = U_t[-1]
-    U_me = {}
-    # for state in comp_space:
-        # vec = qubit.eigvec(state)
-        # U_me[state] = U_f.matrix_element(vec.dag(), vec)
+def _pulse_to_drive_term(
+        qubit: IdealGridium, pulse_cfg: PulseConfig, phi_operator: qt.Qobj
+        ) -> dict:
+    if pulse_cfg.drive_type != 'flux':
+        raise ValueError(
+            "Rabi_3Photon currently supports only drive_type='flux'.")
+
+    initial, final = pulse_cfg.targeted_drive
+    if not (0 <= initial < qubit.nlev and 0 <= final < qubit.nlev):
+        raise ValueError('targeted_drive levels must be within qubit.nlev.')
+    matrix_element = abs(phi_operator[initial, final])
+    if np.isclose(matrix_element, 0.0):
+        raise ValueError(
+            'The targeted transition has a zero flux matrix element; '
+            'its drive normalization is undefined.')
+
+    # Preserve the prior workflow convention: normalize phi to the selected
+    # transition and apply drive_amplitude_factor as an operator scale.
+    drive_term = {
+        'operator': phi_operator / matrix_element,
+        'amplitude': pulse_cfg.drive_amplitude_factor,
+        'omega_d': _carrier_frequency(qubit, pulse_cfg),
+        'phi': pulse_cfg.carrier_phase,
+        'shape': pulse_cfg.pulse_shape,
+        'sigma': pulse_cfg.pulse_sigma,
+        'T_start': pulse_cfg.T_start,
+        'T_gate': pulse_cfg.T_gate,
+        'DRAG': pulse_cfg.DRAG,
+        'DRAG_coefficient': pulse_cfg.DRAG_coeff,
+    }
+    if pulse_cfg.T_rise is not None:
+        drive_term['T_rise'] = pulse_cfg.T_rise
+    return drive_term
+
+
+def state_qubit_state(
+        qubit: IdealGridium,
+        pulse_cfg1: PulseConfig | Sequence[PulseConfig],
+        pulse_cfg2: PulseConfig | None = None,
+        pulse_cfg3: PulseConfig | None = None):
+    """Print the targeted transition and resolved carrier for each tone."""
+    _require_idealgridium(qubit)
+    configs = _coerce_pulse_configs(pulse_cfg1, pulse_cfg2, pulse_cfg3)
+    for index, config in enumerate(configs, start=1):
+        initial, final = config.targeted_drive
+        print(
+            'Tone {} targeting transition {} to {}: {:.6f} GHz; '
+            'detuning {:.6f} GHz; carrier {:.6f} GHz'.format(
+                index, initial, final, abs(qubit.freq(initial, final)),
+                config.drive_detuning, _carrier_frequency(qubit, config)))
+
+
+def solve(
+        qubit: IdealGridium,
+        pulse_cfg1: PulseConfig | Sequence[PulseConfig],
+        pulse_cfg2: PulseConfig | None = None,
+        pulse_cfg3: PulseConfig | None = None,
+        comp_space: Sequence[int] = (0, 1),
+        solve_method: str = 'propagator',
+        mute: bool = False):
+    """Execute one, two, or three independent IdealGridium flux tones."""
+    del comp_space  # Retained only for compatibility with the old entry point.
+    _require_idealgridium(qubit)
+    if solve_method != 'propagator':
+        raise ValueError("Only solve_method='propagator' is implemented.")
+
+    configs = _coerce_pulse_configs(pulse_cfg1, pulse_cfg2, pulse_cfg3)
+    phi_operator = qubit.phi()
+    drive_terms = [
+        _pulse_to_drive_term(qubit, config, phi_operator)
+        for config in configs
+    ]
+    final_time = max(config.T_start + config.T_gate for config in configs)
+    t_points = np.linspace(0, final_time, 2 * int(final_time) + 1)
+    U_t = gates.evolution_operator_multitone_microwave(
+        qubit.H(), drive_terms, t_points=t_points)
 
     if not mute:
-        #Note: this is only for unitary evolution. We shall investigate dephasing errors later.
-        # print('\nMax fidelity during the simulations: ', np.max(fidelity), 'at', np.argmax(fidelity)/2, 'ns')
-        print('** Final values **')
-        # print('Fidelity: ', fidelity[-1])
-        print('\nDiagonal elements of the evolution operator ' +
-            '(amplitudes and phases with respect to E*t in units of pi)')
+        state_qubit_state(qubit, configs)
+    return t_points, U_t
 
-        initial_state = qubit.eigvec(comp_space[0])
-        final_state = qubit.eigvec(comp_space[1])
-        # P_driven_transition = gates.prob_transition(U_t, initial_state, final_state)
-        # t_2nd_excited = scipy.integrate.trapezoid(P_driven_transition, max_t_array)
-        # print('Time spent in the 2nd state for {} - {}: {:.1f} ns'.format(
-            # transitions_to_drive[0], transitions_to_drive[1], t_2nd_excited))
-        # Like an integrated time so should be proportional to phase accumulation!
-    return max_t_array, U_t, 
 
 def visualize_state_propagation(
-        qubit:AbstractQubit,
-        pulse_cfg1:PulseConfig,
-        pulse_cfg2:PulseConfig,
+        qubit: IdealGridium,
+        pulse_configs: Sequence[PulseConfig],
         t_points,
         U_t,
-        n_shown_states,
-        comp_space=[0,1]):
-    # Return graphs with all the relevant details
+        n_shown_states: int = 3,
+        comp_space: Sequence[int] = (0, 1)):
+    """Plot the most populated output levels for selected initial states."""
+    configs = _coerce_pulse_configs(pulse_configs)
+    fig, axes = plt.subplots(
+        1, len(comp_space), figsize=(6 * len(comp_space), 5), squeeze=False)
+    axes = axes[0]
+    fig.suptitle(
+        '{} with {}'.format(
+            qubit.name,
+            ', '.join(
+                'tone {} driving {}'.format(index, cfg.targeted_drive)
+                for index, cfg in enumerate(configs, start=1))))
 
-    # Printing relevant parameters
-    plt_00 = {}
-    plt_01 = {}
-
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-
-    fig.suptitle('{} with D1 {} driving {} and D2 {} driving {}'.format(
-        qubit.name,
-        pulse_cfg1.drive_type,
-        pulse_cfg1.targeted_drive,
-        pulse_cfg2.drive_type,
-        pulse_cfg2.targeted_drive,))
-
-    ax000 = axes[0]
-    ax001 = axes[1]
-
-    # All plots
-    max_final_amp = {}
-    eigvecs = qubit.eigvecs()
-    psi_t = list(u_i * eigvecs for u_i in U_t)
-    for state in range(qubit.nlev): # a-priori we don't know what positions to show, so let's search through all of them, and choose to display the ones with the highest final values (that aren't the identity case)
-        plt_00[state] = psi_t[state]
-        max_final_amp[state] = np.max(plt_00[state]) # NOTE: Maybe we want to actually show the states with highest intermediate values? (i.e. np.max(plt_00[state])
-    top_keys = sorted(max_final_amp, key=max_final_amp.get, reverse=True)[:n_shown_states]
-    for key in top_keys:
-        ax000.scatter(t_points, plt_00[key], lw=2, label=r'$P({}\rightarrow{})$'.format(comp_space[0], key))
-
-    max_final_amp = {}
-    for state in range(qubit.nlev):
-        plt_01[state] = gates.prob_transition(U_t, qubit.eigvec(comp_space[1]), qubit.eigvec(state))
-        max_final_amp[state] = plt_01[state][-1]
-    top_keys = sorted(max_final_amp, key=max_final_amp.get, reverse=True)[:n_shown_states]
-    for key in top_keys:
-        ax001.scatter(t_points, plt_01[key], lw=2, label=r'$P({}\rightarrow{})$'.format(comp_space[1], key))
-
-    # General information
-    textfontsize = 18
-    fig.text(0.5, 0.16, r'At $t = {}$ ns: '.format(int(t_points[-1])),
-            fontsize=textfontsize, ha='center')
-    fig.text(0.5, 0.13,
-            r'$P({}\rightarrow {}) = {:.4f}$, '.format(
-                comp_space[0],
-                comp_space[0],
-                plt_00[comp_space[0]][-1])
-            + r'$P({}\rightarrow {}) = {:.4f}$, '.format(
-                comp_space[1],
-                comp_space[1],
-                plt_01[comp_space[1]][-1]))
-
-    # In plot text for final values
-    ax000.text(0.98, 0.93,
-            r'$P({} \rightarrow {}) = {:.6f}$'.format(
-                comp_space[0],
-                comp_space[0], 
-                plt_00[comp_space[0]][-1]),
-            ha='right', va='top', transform=ax000.transAxes,
-            fontsize=textfontsize)
-    ax001.text(0.98, 0.93,
-            r'$P({} \rightarrow {}) = {:.6f}$'.format(
-                comp_space[1],
-                comp_space[1],
-                plt_01[comp_space[1]][-1]),
-            ha='right', va='top', transform=ax001.transAxes,
-            fontsize=textfontsize)
-
-    # Below plots text for phase and fidelity
-    # fig.text(0.5, 0.1,
-    #         r'CZ gate phase accumulation: '
-    #         + r'$\phi_{{{}}} + \phi_{{{}}} - \phi_{{{}}} - \phi_{{{}}} = $'.format(
-    #             comp_space[0],
-    #             comp_space[3],
-    #             comp_space[2],
-    #             comp_space[1])
-    #         + r'${:.3f} \pi $'.format(phase_accum),
-    #         fontsize=textfontsize, ha='center');
-    fig.text(0.5, 0.05,
-            r'Fidelity: '
-            + r'$F = {:.6f}$'.format(fidelity[-1]),
-            fontsize=textfontsize, ha='center')
-
-    for axarr in axes:
-        for ax in axarr:
-            ax.legend(loc='lower left')
-            ax.set_xlim([np.min(t_points), np.max(t_points)])
-            ax.set_xlabel('Time (ns)')
-            ax.set_ylabel(r'$P_{i\rightarrow f}$')
-
-    ax000.set_title(
-        r'Starting in $|{}\rangle$'.format(comp_space[0]))
-    ax001.set_title(
-        r'Starting in $|{}\rangle$'.format(comp_space[1]))
-
-    fig.tight_layout(rect=[0, 0.15, 1, 1])
-    
-    # TODO: Add meta data to figure
+    for ax, initial in zip(axes, comp_space):
+        probabilities = {
+            final: gates.prob_transition(
+                U_t, qt.basis(qubit.nlev, initial),
+                qt.basis(qubit.nlev, final))
+            for final in range(qubit.nlev)
+        }
+        shown = sorted(
+            probabilities,
+            key=lambda final: np.max(probabilities[final]),
+            reverse=True)[:n_shown_states]
+        for final in shown:
+            ax.plot(
+                t_points, probabilities[final],
+                label=r'$P({}\rightarrow{})$'.format(initial, final))
+        ax.legend(loc='best')
+        ax.set_xlabel('Time (ns)')
+        ax.set_ylabel(r'$P_{i\rightarrow f}$')
+        ax.set_title(r'Starting in $|{}\rangle$'.format(initial))
+    fig.tight_layout()
     return fig
 
-def visualize_lost_trace():
-    # Graphs trace over time to show losses (one plot is better here)
-    return
 
-def minimize_infidelity(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig, solve_method='propagator', mute=False, x0=[0,0]):
-    def infidelity(x):
-        pulse_cfg.drive_detuning, pulse_cfg.DRAG = x
-        _, _, _, fidelity = solve(system, pulse_cfg, system_cfg, solve_method, mute=True)
-        last_infidelity = 1-fidelity[-1]
-        print(last_infidelity)
-        return last_infidelity
-    
-    xopt = minimize(infidelity, x0, method='Nelder-Mead')
-    return xopt, infidelity(x=xopt.x)
+def solve_multitone_drive(
+        qubit: IdealGridium,
+        pulse_paths: Iterable[str | Path],
+        qubit_cache_directory: str | Path | None = None,
+        mute: bool = False):
+    """Load and execute one to three pulse YAML files."""
+    pulse_configs = [load_pulse_config(path) for path in pulse_paths]
+    qubit = load_qubit(qubit, qubit_cache_directory)
+    return solve(qubit, pulse_configs, solve_method='propagator', mute=mute)
 
-def converge_on_pi(system:CoupledObjects, pulse_cfg:PulseConfig, system_cfg:SystemConfig, solve_method='propagator', mute=False):
-    def cphase_pi_error(x):
-        _, _, phase_accum, _ = solve(system, pulse_cfg, system_cfg, solve_method, mute=True)
-        print(phase_accum)
-        return (np.pi - phase_accum)%(2*np.pi)
-    
-    xopt = minimize(cphase_pi_error, pulse_cfg.T_gate, method='Nelder-Mead')
-    return xopt, cphase_pi_error(x=xopt.x)
 
-def solve_two_photon_drive(qubit, pulse_path1, pulse_path2, n_shown_states=3):
-    #combined function that concatenates all the previous functions. Typical entry point
+def solve_two_photon_drive(
+        qubit: IdealGridium, pulse_path1, pulse_path2,
+        n_shown_states: int = 3,
+        qubit_cache_directory: str | Path | None = None):
+    """Compatibility plotting wrapper for the existing two-file workflow."""
+    configs = [load_pulse_config(pulse_path1), load_pulse_config(pulse_path2)]
+    qubit = load_qubit(qubit, qubit_cache_directory)
+    t_points, U_t = solve(qubit, configs)
+    return visualize_state_propagation(
+        qubit, configs, t_points, U_t, n_shown_states=n_shown_states)
 
-    with open(pulse_path1, 'r') as f:
-        pulse_cfg1_dict = yaml.safe_load(f)
-        pulse_cfg1 = PulseConfig(**pulse_cfg1_dict)
 
-    with open(pulse_path2, 'r') as f:
-        pulse_cfg2_dict = yaml.safe_load(f)
-        pulse_cfg2 = PulseConfig(**pulse_cfg2_dict)
-
-    qubit = load_qubit(qubit)
-    state_qubit_state(qubit, pulse_cfg1, pulse_cfg1)
-    t_points, U_t, phase_accum, fidelity = solve(qubit, pulse_cfg1_dict, pulse_cfg2_dict, solve_method='propagator', mute=False)
-    fig = visualize_state_propagation(qubit, pulse_cfg1, pulse_cfg2, t_points, U_t, phase_accum, fidelity, n_shown_states=n_shown_states)
-    return fig
+def solve_three_tone_drive(
+        qubit: IdealGridium, pulse_path1, pulse_path2, pulse_path3,
+        qubit_cache_directory: str | Path | None = None,
+        mute: bool = False):
+    """Load and execute exactly three independently configured tones."""
+    return solve_multitone_drive(
+        qubit, [pulse_path1, pulse_path2, pulse_path3],
+        qubit_cache_directory=qubit_cache_directory, mute=mute)
