@@ -45,7 +45,8 @@ def test_hamiltonian_is_literal_s23_operator_expression():
         E_JS=2.4, E_CS=4.2,
         phi_ext=0.37, theta_ext=-0.41,
         trunc_sigma=3, trunc_delta=4, trunc_s=5,
-        nlev=4, phase_scales=(0.8, 0.9, 1.1))
+        nlev=4, phase_scales=(0.8, 0.9, 1.1),
+        phase_centers=(0.2, -0.3, 0.4))
     identity = qt.qeye(gridium.hilbert_dimension)
     identity.dims = gridium.phi_sigma().dims
     shifted_s = gridium.phi_s() - gridium.phi_ext * identity
@@ -169,6 +170,52 @@ def test_tensor_dimensions_order_and_cross_mode_commutation():
         gridium.phi_sigma() * gridium.n_delta()
         - gridium.n_delta() * gridium.phi_sigma())
     assert _max_abs(cross_commutator) < 1e-14
+
+
+def test_numerical_phase_centers_shift_phi_but_not_n():
+    zero_centered = _gridium()
+    centers = (0.2, np.pi / 2, -0.4)
+    centered = _gridium(phase_centers=centers)
+    identity = qt.qeye(centered.hilbert_dimension)
+    identity.dims = centered.phi_sigma().dims
+
+    for phi_name, center in zip(
+            ('phi_sigma', 'phi_delta', 'phi_s'), centers):
+        np.testing.assert_allclose(
+            (centered.operator(phi_name)
+             - zero_centered.operator(phi_name)).full(),
+            (center * identity).full(), atol=1e-14)
+    for n_name in ('n_sigma', 'n_delta', 'n_s'):
+        np.testing.assert_allclose(
+            centered.operator(n_name).full(),
+            zero_centered.operator(n_name).full(), atol=1e-14)
+
+    h_zero = centered.hamiltonian_primitive()
+    centered.phase_centers = (0.0, 0.0, 0.0)
+    assert centered.phase_centers == (0.0, 0.0, 0.0)
+    assert _max_abs(centered.hamiltonian_primitive() - h_zero) > 1e-3
+
+
+def test_numerical_centers_do_not_follow_physical_biases_implicitly():
+    centers = (0.1, np.pi / 2, -0.2)
+    gridium = _gridium(phase_centers=centers)
+    gridium.theta_ext = 0.3
+    gridium.phi_ext = -0.5
+    assert gridium.phase_centers == centers
+
+
+def test_common_two_pi_cell_shift_preserves_s23_matrix():
+    reference = _gridium(
+        phase_centers=(0.0, np.pi / 2, 0.0),
+        trunc_sigma=4, trunc_delta=5, trunc_s=6, nlev=4)
+    translated = _gridium(
+        phase_centers=(2 * np.pi, np.pi / 2, 2 * np.pi),
+        trunc_sigma=4, trunc_delta=5, trunc_s=6, nlev=4)
+
+    assert _max_abs(
+        reference.hamiltonian_primitive()
+        - translated.hamiltonian_primitive()) < 1e-11
+    assert _max_abs(reference.phi_2() - translated.phi_2()) < 1e-14
 
 
 def test_derived_coordinate_identities():

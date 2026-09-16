@@ -409,7 +409,8 @@ Initial validation should:
 2. tensor them sparsely in the documented order,
 3. request only the low-energy eigenpairs with an iterative Hermitian solver,
 4. vary each mode cutoff independently,
-5. tune oscillator length scales only as numerical basis parameters, and
+5. treat oscillator centers and length scales only as numerical basis
+   parameters, without redefining the physical phase coordinates, and
 6. record dimension, nonzero count, solve time, residuals, and per-level
    convergence.
 

@@ -58,10 +58,12 @@ class SymmetricThreeModeGridium:
     Each canonical pair is represented in an independently truncated
     harmonic-oscillator basis,
 
-    ``phi_j = scale_j * position`` and ``n_j = momentum / scale_j``.
+    ``phi_j = center_j + scale_j * position`` and
+    ``n_j = momentum / scale_j``.
 
-    This is an extended, noncompact phase basis.  ``phase_scales`` affect
-    finite-cutoff convergence only; they are not physical parameters.
+    This is an extended, noncompact phase basis.  ``phase_scales`` and
+    ``phase_centers`` affect finite-cutoff convergence only; they are not
+    physical parameters and do not redefine the physical coordinates.
     """
 
     name = 'Symmetric three-mode Gridium (S23)'
@@ -72,7 +74,7 @@ class SymmetricThreeModeGridium:
             self, E_C, E_J, E_L, E_LK, E_JS, E_CS, *,
             phi_ext=0.0, theta_ext=np.pi,
             trunc_sigma=10, trunc_delta=10, trunc_s=10,
-            nlev=12, phase_scales=None, units='GHz',
+            nlev=12, phase_scales=None, phase_centers=None, units='GHz',
             eigensolver_tol=1e-10, eigensolver_maxiter=None):
         self._basis_cache = None
         self._hamiltonian_cache = None
@@ -99,6 +101,7 @@ class SymmetricThreeModeGridium:
             raise ValueError('nlev must be smaller than the tensor dimension.')
         self._phase_scales_auto = phase_scales is None
         self._phase_scales = self._validate_phase_scales(phase_scales)
+        self._phase_centers = self._validate_phase_centers(phase_centers)
         self.units = units
         self.eigensolver_tol = float(eigensolver_tol)
         self.eigensolver_maxiter = eigensolver_maxiter
@@ -130,6 +133,15 @@ class SymmetricThreeModeGridium:
         array = np.asarray(scales, dtype=float)
         if array.shape != (3,) or np.any(~np.isfinite(array)) or np.any(array <= 0):
             raise ValueError('phase_scales must contain three positive values.')
+        return tuple(float(value) for value in array)
+
+    @staticmethod
+    def _validate_phase_centers(centers):
+        if centers is None:
+            return (0.0, 0.0, 0.0)
+        array = np.asarray(centers, dtype=float)
+        if array.shape != (3,) or np.any(~np.isfinite(array)):
+            raise ValueError('phase_centers must contain three finite values.')
         return tuple(float(value) for value in array)
 
     def _default_phase_scales(self):
@@ -289,6 +301,15 @@ class SymmetricThreeModeGridium:
         self._reset_cache(reset_basis=True)
 
     @property
+    def phase_centers(self):
+        return self._phase_centers
+
+    @phase_centers.setter
+    def phase_centers(self, value):
+        self._phase_centers = self._validate_phase_centers(value)
+        self._reset_cache(reset_basis=True)
+
+    @property
     def truncations(self):
         return (self.trunc_sigma, self.trunc_delta, self.trunc_s)
 
@@ -305,10 +326,12 @@ class SymmetricThreeModeGridium:
             raise ValueError('Current nlev is too large for this truncation.')
 
     @staticmethod
-    def _local_mode(dimension, phase_scale):
+    def _local_mode(dimension, phase_scale, phase_center):
         annihilation = qt.destroy(dimension).to('csr')
+        identity = qt.qeye(dimension).to('csr')
         phi = (
-            phase_scale / np.sqrt(2)
+            phase_center * identity
+            + phase_scale / np.sqrt(2)
             * (annihilation + annihilation.dag())).to('csr')
         n = (
             -1j / (phase_scale * np.sqrt(2))
@@ -316,15 +339,16 @@ class SymmetricThreeModeGridium:
         cos_phi = (0.5 * (
             (1j * phi).expm() + (-1j * phi).expm())).to('csr')
         return _ModeOperators(
-            identity=qt.qeye(dimension).to('csr'),
+            identity=identity,
             phi=phi, n=n, cos_phi=cos_phi)
 
     def _basis(self):
         if self._basis_cache is None:
             self._basis_cache = tuple(
-                self._local_mode(dimension, scale)
-                for dimension, scale in zip(
-                    self.truncations, self.phase_scales))
+                self._local_mode(dimension, scale, center)
+                for dimension, scale, center in zip(
+                    self.truncations, self.phase_scales,
+                    self.phase_centers))
         return self._basis_cache
 
     def _promote(self, sigma=None, delta=None, s=None):
@@ -541,4 +565,5 @@ class SymmetricThreeModeGridium:
             'Symmetric three-mode Gridium (paper Eq. S23) with '
             'E_C={0.E_C:g}, E_J={0.E_J:g}, E_L={0.E_L:g}, '
             'E_LK={0.E_LK:g}, E_JS={0.E_JS:g}, E_CS={0.E_CS:g} '
-            '{0.units}; truncations={0.truncations}.'.format(self))
+            '{0.units}; truncations={0.truncations}, numerical centers='
+            '{0.phase_centers}.'.format(self))
