@@ -31,10 +31,16 @@ Next: Use this validated symmetric X180 as the baseline for studying whether sli
 
 ## Work Block — 2026-09-16
 
-Completed: Calibrated and validated a symmetric IdealGridium X90 candidate with 99.23% logical fidelity, 0.061% final leakage, and 0.198% peak leakage, added robust eigenstate tracking, and confirmed that a simple flux-bias offset away from the protected point does not provide a useful symmetry-breaking proxy.
+Completed: Calibrated and validated a symmetric IdealGridium X90 candidate with 99.23% logical fidelity, 0.061% final leakage, and 0.198% peak leakage; added robust eigenstate tracking; and confirmed that a simple flux-bias offset away from the protected point is not a useful symmetry-breaking proxy. Also implemented and diagnosed the symmetric three-mode S23 model, finding that its fully extended representation suffers from the common-coordinate topology problem rather than a simple cutoff issue.
 
-Also began the multimode implementation path: documented the paper’s three-/four-mode and asymmetry hierarchy, implemented the source-faithful symmetric three-mode Eq. S23 model, and found that its fully extended representation does not converge cleanly because the common translated coordinate requires the compact-coordinate topology made explicit in Eq. S26. The next step is therefore to implement printed Eq. S26 as a separate compact-coordinate model before proceeding to the four-mode model.
+Merged the validated control/multimode work into `four-mode-asym-gridium-tests` as requested and verified the merged branch with 34 control/multimode tests plus 6 IdealGridium regression tests passing. After the merge, audited the existing four-mode machinery and identified `qchard_gridium_netlist.Gridium4Mode` as the authoritative candidate model; its default validation suite gives 13 passed and 5 intentionally skipped production-scale convergence checks.
+
+A bounded four-mode convergence diagnostic at the protected point showed that the explicit fourth-mode cutoff is already stable by `N4=6 -> 8`, while Stage-1 retained-state truncation is not yet converged: `nkeep=80 -> 100` still changes checked first-six transitions by as much as 17.96 MHz and several `d_phi` doublet-block singular values remain unstable, although `d_theta` is substantially better behaved. The original production `nkeep=320 -> 360` test was stopped after \~58 minutes without completing, so future validation will use bounded convergence ladders before retrying production-scale calculations.
+
+Next: Extend only Stage-1 `nkeep` convergence at the fixed protected-point anchor (100, 120, 140, 160). Once Stage-1 retention is stable, proceed to spatial-basis convergence and independent flux/operator validation against the netlist/scqubits reference before adapting the multitone X90/X180 control workflow to the four-mode model. Do not optimize four-mode gates until the physical flux-drive operator is established.
 
 ### Questions for Thomas
-- The supplement appears to contain a factor-of-two inconsistency between the inductive coefficient in Eqs. S23 and S26. Which coefficient should we treat as physically intended?
-- For the eventual asymmetric four-mode model, should we derive the asymmetry directly from the full branch-level four-mode circuit, or is there an existing formulation you would prefer us to use?
+
+- For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
+- Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
+- Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
