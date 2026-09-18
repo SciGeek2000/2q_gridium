@@ -44,3 +44,24 @@ Next: Extend only Stage-1 `nkeep` convergence at the fixed protected-point ancho
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
 - Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
+
+
+## Work Block — 2026-09-17
+
+Completed: Continued validation of the netlist-derived `Gridium4Mode` model and isolated the Stage-1 eigensolver as the main numerical bottleneck. With the original shift-invert configuration, `k=120` exceeded 300 s and `k=160` exceeded 600 s without returning eigenpairs, while Hamiltonian assembly itself was negligible.
+
+Instrumented the `k=100` Stage-1 solve and found that sparse LU factorization dominated runtime and produced substantial fill-in: the default COLAMD factorization required about 73.6 s, produced roughly 43.8 million LU nonzeros (73.1x fill), and pushed peak memory near 1.9 GiB. Benchmarking SuperLU orderings identified `MMD_AT_PLUS_A` as the best alternative, reducing LU fill to 47.8x, materially lowering memory use and inverse-solve cost while preserving the identical Hamiltonian.
+
+Validated `MMD_AT_PLUS_A` at `k=100`: Stage-1 eigenvalues agreed with the original solver to within approximately `5.3e-13 GHz`, downstream four-mode energies agreed within `0.000441 MHz`, and eigenpair/orthonormality residuals remained near numerical precision. Using the validated ordering, a single `k=120` solve completed successfully in about 33.9 s (`~66.6 s` total diagnostic runtime), allowing the same eigensystem to be reused for `nkeep=100,110,120`.
+
+The `k=120` convergence study showed that Stage-1 retention is still not fully converged. At `110 -> 120`, `f02`, `f03`, and `f06` remained above the spectral thresholds; five `d_phi` singular values and one `d_theta` singular value also failed. A follow-up audit found that the behavior is best explained by genuine nested Rayleigh-Ritz truncation error and differential virtual-state dressing, rather than eigensolver noise or arbitrary rotations within the near-degenerate doublets. Energy-only Stage-1 truncation remains mathematically sound but converges slowly.
+
+A bounded `k=140` Stage-1 solve was then completed successfully using `MMD_AT_PLUS_A`, and all downstream truncations for `nkeep=100,110,120,130,140` were completed. The full Stage-1 eigenvectors, projected operators, and downstream eigensystems were saved under `/private/tmp` before the usage limit was reached. The expensive computation is therefore preserved, but the final `k=140` convergence, overlap/state-tracking, and cutoff-boundary diagnostics have not yet been evaluated.
+
+Next: Resume from the saved `k=140` artifacts only; do not rerun the Stage-1 solve. Complete the `120 -> 130 -> 140` convergence tables, low-energy state/subspace overlaps, and Stage-1 cutoff-boundary weight diagnostics. Use those results to decide whether Stage-1 retention is sufficiently converged for `n1max/N2/N3` spatial-basis checks or whether a `k=160` calculation is scientifically justified.
+
+### Questions for Thomas
+
+- For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
+- Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
+- Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
