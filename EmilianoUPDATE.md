@@ -65,3 +65,20 @@ Next: Resume from the saved `k=140` artifacts only; do not rerun the Stage-1 sol
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
 - Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
+
+
+## Work Block — 2026-09-18
+
+Completed: Extended the four-mode Stage-1 retained-state convergence study through `k=180` using the validated `MMD_AT_PLUS_A` shift-invert solver. The `k=160` calculation showed near-convergence, but the subsequent `160 -> 170 -> 180` ladder revealed a large structured change when Stage-1 states 170-179 entered: `f06` shifted by 57.53 MHz at `170 -> 180`, several `d_phi` blocks regressed, and one `d_theta` block failed, while the logical doublets and low-energy subspaces remained very well tracked. This ruled out simple state-labeling or gauge artifacts and showed that pure energy-ranked Stage-1 truncation can miss important states even when direct cutoff-boundary weight is small.
+
+Post-processing of the saved `k=180` eigensystem identified the effect as a small-cluster coupling problem rather than broad uniform truncation error. Stage-1 states 172, 174, and 175 dominate the newly admitted shell; state 172 participates in a particularly strong fourth-mode-assisted near resonance with only about 5.85 MHz detuning and roughly 92.7 MHz coupling. The dominant Stage-2 shell coupling is carried primarily by the `x2/x3` quadrature, which also explains why `d_phi` is considerably more sensitive than `d_theta`.
+
+A same-dimension proof-of-concept selected-basis benchmark was then performed entirely from the saved `k=180` data, with no new Stage-1 eigensolve. Ordinary energy-only `nkeep=170` was compared against a 170-state basis containing states `0-159` plus coupling-important states `165,169,171,172,173,174,175,176,178,179`. Relative to the full `nkeep=180` reference, the selected basis reduced the maximum low-energy error by about 29.5x, the `f06` error by about 17.7x, the maximum `d_phi` singular-value error by about 12.2x, the maximum `d_theta` singular-value error by about 12.7x, and the largest omitted-space residual by about 5.3x. Some individual transitions, notably `f05`, became worse, so this is a diagnostic proof of concept rather than a production selection algorithm.
+
+Conclusion: increasing `nkeep` by energy ordering alone is no longer the preferred numerical strategy. The next step is to develop and benchmark a deterministic residual/coupling-informed Stage-1 state-selection rule that can identify important states without first knowing the full high-`k` solution. No further `k>180` solve should be run until that strategy is tested.
+
+### Questions for Thomas
+
+- For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
+- Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
+- Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
