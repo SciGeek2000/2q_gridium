@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 import scipy.sparse.linalg as spsl
+from scipy.optimize import linear_sum_assignment
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -277,6 +278,185 @@ def _tiny_complete_model(**overrides):
     return Gridium4Mode(**settings)
 
 
+def _primitive_flux_derivative(model, parameter, delta=1e-5):
+    fluxes = dict(phi_ext=model.phi_ext, theta_ext=model.theta_ext)
+    fluxes[parameter] = getattr(model, parameter) + delta
+    plus = _direct_four_mode_hamiltonian(_tiny_complete_model(**fluxes))
+    fluxes[parameter] = getattr(model, parameter) - delta
+    minus = _direct_four_mode_hamiltonian(_tiny_complete_model(**fluxes))
+    return (plus - minus) / (2 * delta)
+
+
+@pytest.mark.parametrize('parameter', ['phi_ext', 'theta_ext'])
+def test_four_mode_fluxes_are_two_pi_periodic(parameter):
+    reference = _tiny_complete_model()
+    shifted = _tiny_complete_model(
+        **{parameter: getattr(reference, parameter) + 2 * np.pi}
+    )
+
+    # Flux enters the implemented branch cosines, so the primitive-basis
+    # Hamiltonian itself (not only its spectrum) is exactly 2*pi periodic.
+    reference_hamiltonian = _direct_four_mode_hamiltonian(reference)
+    shifted_hamiltonian = _direct_four_mode_hamiltonian(shifted)
+    np.testing.assert_allclose(
+        shifted_hamiltonian,
+        reference_hamiltonian,
+        rtol=0.0,
+        atol=5e-13,
+    )
+    np.testing.assert_allclose(
+        shifted.levels(), reference.levels(), rtol=0.0, atol=1e-10,
+    )
+
+    reference_energies, reference_states = np.linalg.eigh(reference_hamiltonian)
+    shifted_energies, shifted_states = np.linalg.eigh(shifted_hamiltonian)
+    nlev = reference.nlev
+    reference_states = reference_states[:, :nlev]
+    shifted_states = shifted_states[:, :nlev]
+
+    # The anchor is intentionally nondegenerate, including separation from the
+    # first state outside the compared subspace.
+    assert np.min(np.diff(reference_energies[:nlev + 1])) > 1e-3
+    assert np.min(np.diff(shifted_energies[:nlev + 1])) > 1e-3
+
+    overlap = reference_states.conj().T @ shifted_states
+    rows, columns = linear_sum_assignment(-np.abs(overlap))
+    matching = np.empty(nlev, dtype=int)
+    matching[rows] = columns
+    matched_overlaps = np.array([
+        overlap[index, matching[index]] for index in range(nlev)
+    ])
+    assert np.min(np.abs(matched_overlaps)) > 1.0 - 1e-10
+    np.testing.assert_allclose(
+        shifted_energies[matching], reference_energies[:nlev],
+        rtol=0.0, atol=1e-10,
+    )
+
+    aligned_shifted_states = shifted_states[:, matching] * np.exp(
+        -1j * np.angle(matched_overlaps)
+    )[np.newaxis, :]
+    np.testing.assert_allclose(
+        reference_states.conj().T @ aligned_shifted_states,
+        np.eye(nlev), rtol=0.0, atol=5e-10,
+    )
+
+    for derivative_parameter, operator_name in (
+        ('phi_ext', 'd_phi'), ('theta_ext', 'd_theta'),
+    ):
+        reference_derivative = _primitive_flux_derivative(
+            reference, derivative_parameter,
+        )
+        shifted_derivative = _primitive_flux_derivative(
+            shifted, derivative_parameter,
+        )
+
+        # These derivative operators use the same primitive basis and gauge, so
+        # periodicity requires elementwise equality, including signs.
+        np.testing.assert_allclose(
+            shifted_derivative, reference_derivative, rtol=0.0, atol=1e-9,
+        )
+
+        reference_projected = (
+            reference_states.conj().T @ reference_derivative @ reference_states
+        )
+        shifted_projected = (
+            aligned_shifted_states.conj().T
+            @ shifted_derivative
+            @ aligned_shifted_states
+        )
+        np.testing.assert_allclose(
+            shifted_projected, reference_projected, rtol=0.0, atol=1e-9,
+        )
+
+        # Tie the state-aligned primitive check to the public projected
+        # operators. At this nondegenerate anchor their remaining ambiguity is
+        # only an independent phase for each eigenvector.
+        reference_public = getattr(reference, operator_name)().full()
+        shifted_public = getattr(shifted, operator_name)().full()
+        np.testing.assert_allclose(
+            np.real(np.diag(shifted_public)),
+            np.real(np.diag(reference_public)),
+            rtol=0.0, atol=1e-10,
+        )
+        np.testing.assert_allclose(
+            np.abs(shifted_public), np.abs(reference_public),
+            rtol=0.0, atol=1e-10,
+        )
+
+
+def test_offset_charge_periodicity_is_a_gauge_identity_with_cutoff_error():
+    common = dict(
+        **REGIME_A, **FOUR_MODE_CAPS,
+        eps_J=0.07, eps_LK=0.04, phi_ext=0.31, theta_ext=2.63,
+        N2=3, L2=4.0, N3=3, L3=4.0, N4=2, nlev=4,
+    )
+    ng = 0.17
+
+    # Formally, ng -> ng + 1 is undone by translating compact charge by one.
+    # A finite charge basis lacks one boundary state, but the overlapping
+    # interior blocks of the complete primitive Hamiltonians remain identical.
+    n1max = 2
+    sector_dimension = (2 * n1max + 1) * common['N2'] * common['N3']
+    reference = Gridium4Mode(
+        **common, ng=ng, n1max=n1max, nkeep=sector_dimension,
+    )
+    shifted = Gridium4Mode(
+        **common, ng=ng + 1.0, n1max=n1max, nkeep=sector_dimension,
+    )
+    reference_hamiltonian = _direct_four_mode_hamiltonian(reference)
+    shifted_hamiltonian = _direct_four_mode_hamiltonian(shifted)
+
+    charge_dimension = 2 * n1max + 1
+    outer_dimension = common['N2'] * common['N3']
+    shifted_sector_indices = np.concatenate([
+        outer * charge_dimension + np.arange(charge_dimension - 1)
+        for outer in range(outer_dimension)
+    ])
+    reference_sector_indices = np.concatenate([
+        outer * charge_dimension + np.arange(1, charge_dimension)
+        for outer in range(outer_dimension)
+    ])
+
+    def include_fourth_mode(sector_indices):
+        return np.concatenate([
+            index * common['N4'] + np.arange(common['N4'])
+            for index in sector_indices
+        ])
+
+    shifted_indices = include_fourth_mode(shifted_sector_indices)
+    reference_indices = include_fourth_mode(reference_sector_indices)
+    np.testing.assert_allclose(
+        shifted_hamiltonian[np.ix_(shifted_indices, shifted_indices)],
+        reference_hamiltonian[np.ix_(reference_indices, reference_indices)],
+        rtol=0.0,
+        atol=5e-13,
+    )
+
+    # The full finite matrices retain different boundary states, so periodicity
+    # is approximate. This small ladder checks decreasing finite-boundary error
+    # at this bounded anchor. The terminal bounds below are empirical regression
+    # thresholds, not production-convergence criteria.
+    absolute_errors = []
+    transition_errors = []
+    for cutoff in (1, 2, 3, 4):
+        dimension = (2 * cutoff + 1) * common['N2'] * common['N3']
+        levels = []
+        for offset_charge in (ng, ng + 1.0):
+            model = Gridium4Mode(
+                **common, ng=offset_charge, n1max=cutoff, nkeep=dimension,
+            )
+            levels.append(model.levels())
+        absolute_errors.append(np.max(np.abs(levels[1] - levels[0])))
+        transition_errors.append(np.max(np.abs(
+            (levels[1] - levels[1][0]) - (levels[0] - levels[0][0])
+        )))
+
+    assert np.all(np.diff(absolute_errors) < 0.0)
+    assert np.all(np.diff(transition_errors) < 0.0)
+    assert absolute_errors[-1] < 1e-2
+    assert transition_errors[-1] < 1e-2
+
+
 def _small_stage1_problem():
     settings = dict(
         **REGIME_A, **FOUR_MODE_CAPS,
@@ -297,6 +477,16 @@ def _small_stage1_problem():
     )
     sigma = -(EJ1 + EJ2 + settings['EJS'] + 10.0)
     return settings, matrix, sigma
+
+
+def test_stage1_hamiltonian_is_hermitian():
+    _, matrix, _ = _small_stage1_problem()
+    antihermitian = matrix - matrix.conj().T
+    residual = (
+        0.0 if antihermitian.nnz == 0
+        else np.max(np.abs(antihermitian.data))
+    )
+    assert residual < 1e-13
 
 
 def test_stage1_explicit_shift_invert_matches_scipy_default_path():
