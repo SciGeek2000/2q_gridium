@@ -1,88 +1,75 @@
 ## Work Block — 2026-09-07
 
-Completed: Set up the Gridium research workflow, validated the IdealGridium environment, grounded the docs in the paper/Thomas notes, and audited the current Rabi_3Photon implementation.
+Completed: Set up the Gridium research workflow and established the division between research planning/interpretation and repository implementation. Validated the IdealGridium Python/QuTiP environment and grounded the working notes in the Gridium paper and Thomas's guidance. Audited the existing `Rabi_3Photon` implementation and identified that the intended three-photon control mechanism, pathway, tone structure, and drive operator still needed to be pinned down before making substantive changes.
 
-Next: Confirm the remaining 3-photon control details with Thomas, then turn those answers into the first validated implementation task.
+Next: Clarify the intended three-photon control scheme with Thomas, then turn those answers into the first bounded and reproducible control-validation task.
 
-### Thomas feedback
--
+### Questions for Thomas
+
+- Is the intended three-photon logical gate driven through flux modulation rather than charge modulation?
+- Should the control machinery support three independently tunable drive frequencies from the beginning?
+- Is there a preferred intermediate-state pathway that should be treated as the initial reference implementation?
 
 
 ## Work Block — 2026-09-08
 
-Completed: Characterized the proposed three-photon pathways and protected-point selection rules, identifying important degeneracies and showing that several possible interpretations of the control scheme lead to substantially different implementations.
+Completed: Characterized the candidate three-photon pathways and the protected-point selection rules of the symmetric IdealGridium model. Identified important degeneracies and showed that several superficially similar interpretations of the control scheme lead to materially different implementations and matrix elements. This made it clear that the control physics should be resolved before optimizing a gate numerically.
 
-Next: Confirm Thomas's intended meaning of the three-photon process, pathway, tone structure, and drive operators before making further physics or implementation decisions.
+Next: Use Thomas's clarification of the physical drive, pathway, and symmetry-breaking intent to define the first validated three-tone control experiment.
 
-### Thomas feedback
--
+### Questions for Thomas
+
+- Which physical flux coordinate/operator is intended to drive the logical gate?
+- Is the first three-tone pathway intended to connect the logical states through the 0/5/4/1 manifold, or should a different intermediate manifold be used?
+- Should perfect symmetry be treated only as a reference point, with slight fabrication asymmetry introduced intentionally for control?
 
 
 ## Work Block — 2026-09-15
 
-Completed: Built and validated the three-tone flux-drive control workflow and obtained a converged symmetric IdealGridium X180 candidate with 98.67% logical fidelity, 0.47% final leakage, ~0.50% peak leakage, and a 21.5 ns gate time.
+Completed: Built and validated the three-tone flux-drive control workflow in symmetric IdealGridium and obtained a converged X180 candidate with 98.67% logical fidelity, 0.47% final leakage, approximately 0.50% peak leakage, and a 21.5 ns gate time. Tightened the time-domain solver enough to separate numerical error from coherent gate error and found that the remaining infidelity is primarily coherent axis/angle error rather than leakage. The result established a reliable symmetric baseline for testing X90 control and eventual symmetry breaking.
 
-Next: Use this validated symmetric X180 as the baseline for studying whether slight symmetry breaking can further reduce coherent gate error and leakage, then extend toward X90 and eventually the asymmetric four-mode Gridium model.
+Next: Use the validated symmetric X180 as the control baseline, construct an X90 gate with the same methodology, and then determine how slight symmetry breaking affects fidelity, matrix elements, and leakage before moving to the full four-mode model.
 
 ### Questions for Thomas
-- Can you confirm that 0<->5, 5<->4, 4<->1 is the intended first three-flux-tone pathway?
-- For the first symmetry-breaking study, which physical asymmetry should we vary first, and is there a preferred nominal magnitude/range?
+
+- Can you confirm that `0 <-> 5`, `5 <-> 4`, `4 <-> 1` is the intended first three-flux-tone pathway?
+- For the first symmetry-breaking study, which physical asymmetry should we vary first, and is there a preferred nominal magnitude or fabrication-relevant range?
 
 
 ## Work Block — 2026-09-16
 
-Completed: Calibrated and validated a symmetric IdealGridium X90 candidate with 99.23% logical fidelity, 0.061% final leakage, and 0.198% peak leakage; added robust eigenstate tracking; and confirmed that a simple flux-bias offset away from the protected point is not a useful symmetry-breaking proxy. Also implemented and diagnosed the symmetric three-mode S23 model, finding that its fully extended representation suffers from the common-coordinate topology problem rather than a simple cutoff issue.
+Completed: Calibrated and validated a symmetric IdealGridium X90 candidate with 99.23% logical fidelity, 0.061% final leakage, and 0.198% peak leakage, and added robust eigenstate tracking for near-degenerate manifolds. Tested a simple external-flux offset as a symmetry-breaking proxy and found that it rotates/mixes the logical doublet rather than cleanly representing the fabrication asymmetry we want to study. Implemented and diagnosed the symmetric three-mode S23 model, finding that its fully extended representation has a common-coordinate/topology problem rather than a simple cutoff problem, then merged the validated work into `four-mode-asym-gridium-tests` as requested. Audited the shared four-mode code and identified `qchard_gridium_netlist.Gridium4Mode` as the authoritative candidate model; the initial bounded validation suite gave 13 passed and 5 intentionally skipped production-scale checks, while `N4=6 -> 8` was already stable and Stage-1 retained-state convergence remained the main numerical issue.
 
-Merged the validated control/multimode work into `four-mode-asym-gridium-tests` as requested and verified the merged branch with 34 control/multimode tests plus 6 IdealGridium regression tests passing. After the merge, audited the existing four-mode machinery and identified `qchard_gridium_netlist.Gridium4Mode` as the authoritative candidate model; its default validation suite gives 13 passed and 5 intentionally skipped production-scale convergence checks.
-
-A bounded four-mode convergence diagnostic at the protected point showed that the explicit fourth-mode cutoff is already stable by `N4=6 -> 8`, while Stage-1 retained-state truncation is not yet converged: `nkeep=80 -> 100` still changes checked first-six transitions by as much as 17.96 MHz and several `d_phi` doublet-block singular values remain unstable, although `d_theta` is substantially better behaved. The original production `nkeep=320 -> 360` test was stopped after \~58 minutes without completing, so future validation will use bounded convergence ladders before retrying production-scale calculations.
-
-Next: Extend only Stage-1 `nkeep` convergence at the fixed protected-point anchor (100, 120, 140, 160). Once Stage-1 retention is stable, proceed to spatial-basis convergence and independent flux/operator validation against the netlist/scqubits reference before adapting the multitone X90/X180 control workflow to the four-mode model. Do not optimize four-mode gates until the physical flux-drive operator is established.
+Next: Validate Stage-1 retention in the netlist-derived four-mode model before attempting spatial-basis convergence or porting the X90/X180 control workflow. Keep four-mode gate optimization on hold until the physical flux-drive operator is established.
 
 ### Questions for Thomas
 
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
-- Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
+- Can we treat `qchard_gridium_netlist.Gridium4Mode` as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
 
 
 ## Work Block — 2026-09-17
 
-Completed: Continued validation of the netlist-derived `Gridium4Mode` model and isolated the Stage-1 eigensolver as the main numerical bottleneck. With the original shift-invert configuration, `k=120` exceeded 300 s and `k=160` exceeded 600 s without returning eigenpairs, while Hamiltonian assembly itself was negligible.
+Completed: Continued validation of `Gridium4Mode` and isolated the Stage-1 shift-invert eigensolver as the dominant numerical bottleneck rather than Hamiltonian construction. Instrumentation showed that sparse LU factorization and fill-in dominated runtime; the default COLAMD ordering produced about 73.1x fill, while `MMD_AT_PLUS_A` reduced this to about 47.8x and substantially reduced memory and inverse-solve cost. Verified that the new ordering preserves the same Hamiltonian physics: at `k=100`, Stage-1 eigenvalues agreed to approximately `5.3e-13 GHz`, downstream energies agreed within approximately `0.000441 MHz`, and eigenpair/orthogonality residuals remained near numerical precision. A bounded `k=120` study still showed retained-space convergence failures, and a successful `k=140` solve was checkpointed for later state-overlap, operator, and cutoff-boundary analysis rather than rerunning expensive calculations.
 
-Instrumented the `k=100` Stage-1 solve and found that sparse LU factorization dominated runtime and produced substantial fill-in: the default COLAMD factorization required about 73.6 s, produced roughly 43.8 million LU nonzeros (73.1x fill), and pushed peak memory near 1.9 GiB. Benchmarking SuperLU orderings identified `MMD_AT_PLUS_A` as the best alternative, reducing LU fill to 47.8x, materially lowering memory use and inverse-solve cost while preserving the identical Hamiltonian.
-
-Validated `MMD_AT_PLUS_A` at `k=100`: Stage-1 eigenvalues agreed with the original solver to within approximately `5.3e-13 GHz`, downstream four-mode energies agreed within `0.000441 MHz`, and eigenpair/orthonormality residuals remained near numerical precision. Using the validated ordering, a single `k=120` solve completed successfully in about 33.9 s (`~66.6 s` total diagnostic runtime), allowing the same eigensystem to be reused for `nkeep=100,110,120`.
-
-The `k=120` convergence study showed that Stage-1 retention is still not fully converged. At `110 -> 120`, `f02`, `f03`, and `f06` remained above the spectral thresholds; five `d_phi` singular values and one `d_theta` singular value also failed. A follow-up audit found that the behavior is best explained by genuine nested Rayleigh-Ritz truncation error and differential virtual-state dressing, rather than eigensolver noise or arbitrary rotations within the near-degenerate doublets. Energy-only Stage-1 truncation remains mathematically sound but converges slowly.
-
-A bounded `k=140` Stage-1 solve was then completed successfully using `MMD_AT_PLUS_A`, and all downstream truncations for `nkeep=100,110,120,130,140` were completed. The full Stage-1 eigenvectors, projected operators, and downstream eigensystems were saved under `/private/tmp` before the usage limit was reached. The expensive computation is therefore preserved, but the final `k=140` convergence, overlap/state-tracking, and cutoff-boundary diagnostics have not yet been evaluated.
-
-Next: Resume from the saved `k=140` artifacts only; do not rerun the Stage-1 solve. Complete the `120 -> 130 -> 140` convergence tables, low-energy state/subspace overlaps, and Stage-1 cutoff-boundary weight diagnostics. Use those results to decide whether Stage-1 retention is sufficiently converged for `n1max/N2/N3` spatial-basis checks or whether a `k=160` calculation is scientifically justified.
+Next: Resume only from the saved `k=140` artifacts, determine whether the retained-state error is ordinary slow Rayleigh-Ritz convergence or a more structured coupling problem, and use that evidence to decide whether a bounded `k=160` extension is scientifically justified.
 
 ### Questions for Thomas
 
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
-- Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
+- Can we treat `qchard_gridium_netlist.Gridium4Mode` as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
 
 
 ## Work Block — 2026-09-18
 
-Completed: Extended the four-mode Stage-1 retained-state convergence study through `k=180` using the validated `MMD_AT_PLUS_A` shift-invert solver. The `k=160` calculation showed near-convergence, but the subsequent `160 -> 170 -> 180` ladder revealed a large structured change when Stage-1 states 170-179 entered: `f06` shifted by 57.53 MHz at `170 -> 180`, several `d_phi` blocks regressed, and one `d_theta` block failed, while the logical doublets and low-energy subspaces remained very well tracked. This ruled out simple state-labeling or gauge artifacts and showed that pure energy-ranked Stage-1 truncation can miss important states even when direct cutoff-boundary weight is small.
+Completed: Extended the four-mode retained-state study through `k=180` and found that energy-ranked Stage-1 truncation can miss physically important higher-energy states: the `170 -> 180` step shifted `f06` by about 57.53 MHz even though the logical doublets remained well tracked. Post-processing traced the effect primarily to a small cluster around Stage-1 states 172/174/175, including a strong fourth-mode-assisted near resonance involving state 172, and showed that the dominant shell coupling is carried mainly through the `x2/x3` sector. A separate local Gridium sandbox then tested blind residual-, coupling-, channel-, QoI-, and operator-response enrichment methods using only the saved `k=180` parent data; the best blind constructions matched or beat the diagnostic hand basis spectrally at the same retained dimension, reaching about 2.81 MHz maximum first-six transition error and 0.363 MHz `f06` error, while operator-response/Krylov enrichment improved `d_theta` from roughly 20.6 MHz/rad for ordinary energy truncation to about 4.3 MHz/rad but still did not match the hand basis. Also productionized the validated optional `MMD_AT_PLUS_A` solver path and expanded the bounded physical-validation suite to 21 passed and 5 intentionally skipped tests covering flux periodicity, finite-cutoff charge-periodicity behavior, Hermiticity, and state-resolved `d_phi`/`d_theta` periodicity, with no physical inconsistency found.
 
-Post-processing of the saved `k=180` eigensystem identified the effect as a small-cluster coupling problem rather than broad uniform truncation error. Stage-1 states 172, 174, and 175 dominate the newly admitted shell; state 172 participates in a particularly strong fourth-mode-assisted near resonance with only about 5.85 MHz detuning and roughly 92.7 MHz coupling. The dominant Stage-2 shell coupling is carried primarily by the `x2/x3` quadrature, which also explains why `d_phi` is considerably more sensitive than `d_theta`.
-
-A same-dimension proof-of-concept selected-basis benchmark was then performed entirely from the saved `k=180` data, with no new Stage-1 eigensolve. Ordinary energy-only `nkeep=170` was compared against a 170-state basis containing states `0-159` plus coupling-important states `165,169,171,172,173,174,175,176,178,179`. Relative to the full `nkeep=180` reference, the selected basis reduced the maximum low-energy error by about 29.5x, the `f06` error by about 17.7x, the maximum `d_phi` singular-value error by about 12.2x, the maximum `d_theta` singular-value error by about 12.7x, and the largest omitted-space residual by about 5.3x. Some individual transitions, notably `f05`, became worse, so this is a diagnostic proof of concept rather than a production selection algorithm.
-
-Conclusion: increasing `nkeep` by energy ordering alone is no longer the preferred numerical strategy. The next step is to develop and benchmark a deterministic residual/coupling-informed Stage-1 state-selection rule that can identify important states without first knowing the full high-`k` solution. No further `k>180` solve should be run until that strategy is tested.
+Next: Stop brute-force energy-only `k > 180` growth and treat retained-subspace construction as the remaining numerical problem, especially blind representation of `d_theta` response. Once that issue is sufficiently controlled, resume `n1max/N2/N3` spatial-basis convergence and independent operator/model validation, then port the validated three-tone X90/X180 workflow to the asymmetric four-mode model.
 
 ### Questions for Thomas
 
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
-- Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
+- Can we treat `qchard_gridium_netlist.Gridium4Mode` as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
-
-### Solver implementation follow-up
-
-Productionized the validated `MMD_AT_PLUS_A` Stage-1 shift-invert option in `Gridium4Mode` without changing the default solver path or Hamiltonian physics. The implementation keeps the historical implicit SciPy shift-invert behavior as the default, adds opt-in numerical solver controls and diagnostics, prevents solver settings from being treated as physical sweep parameters, and includes bounded regression tests for legacy behavior, numerical equivalence, downstream spectra/operators, and sweep reconstruction. The bounded four-mode validation suite now reports 17 passed and 5 intentionally skipped production-scale tests.
