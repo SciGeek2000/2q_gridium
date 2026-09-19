@@ -1,6 +1,7 @@
 #four-mode hamiltonian derived from circuit netlist 
 
 from dataclasses import dataclass
+import time
 
 import numpy as np
 import qutip as qt
@@ -9,6 +10,11 @@ import scipy.sparse as sps
 import scipy.sparse.linalg as spsl
 
 __all__ = ['Gridium4Mode', 'SpectrumSweepResult']
+
+_STAGE1_NUMERICAL_PARAMETERS = frozenset({
+    'stage1_sigma', 'stage1_which', 'stage1_tol', 'stage1_ncv', 'stage1_v0',
+    'stage1_permc_spec', 'stage1_collect_diagnostics',
+})
 
 
 @dataclass(frozen=True)
@@ -68,7 +74,8 @@ class _GridiumSpectrumSweepMixin:
                                   subtract_ground=False, num_cpus=1):
       
         constructor_kwargs = self._constructor_kwargs()
-        if param_name not in constructor_kwargs or param_name == 'nlev':
+        if (param_name not in constructor_kwargs or param_name == 'nlev'
+                or param_name in _STAGE1_NUMERICAL_PARAMETERS):
             raise ValueError('Unknown or unsupported sweep parameter: %s' % param_name)
 
         values = np.asarray(param_vals)
@@ -234,7 +241,86 @@ def _assemble_nonlinear_sector(ECm, K, EJ1, EJ2, EJS, ng, phi_ext, theta_ext,
     return H, ops
 
 
+def _stage1_eigensolve(matrix, k, sigma, which='LM', tol=1e-8, ncv=None,
+                       v0=None, permc_spec=None, collect_diagnostics=False):
+    """Solve the standard Stage-1 eigenproblem, whose mass matrix is ``M=I``.
+
+    When ``permc_spec`` is provided, the explicit shift-invert operator is
+    ``OPinv = (A - sigma I)^(-1)``.  The remaining arguments retain their
+    ``scipy.sparse.linalg.eigsh`` meanings.
+    """
+    matrix = matrix.tocsc()
+    eigsh_kwargs = dict(
+        k=k, sigma=sigma, which=which, tol=tol, ncv=ncv, v0=v0,
+    )
+
+    if permc_spec is None:
+        started = time.perf_counter() if collect_diagnostics else None
+        values, vectors = spsl.eigsh(matrix, **eigsh_kwargs)
+        diagnostics = None
+        if collect_diagnostics:
+            diagnostics = {
+                'path': 'scipy_default_shift_invert',
+                'factorization_seconds': None,
+                'eigsh_seconds': time.perf_counter() - started,
+                'opinv_solve_count': None,
+                'L_nnz': None,
+                'U_nnz': None,
+                'LU_nnz': None,
+                'fill_ratio': None,
+            }
+    else:
+        shifted = matrix - sigma * sps.identity(
+            matrix.shape[0], dtype=matrix.dtype, format='csc',
+        )
+        started = time.perf_counter() if collect_diagnostics else None
+        lu = spsl.splu(shifted, permc_spec=permc_spec)
+        factorization_seconds = (
+            time.perf_counter() - started if collect_diagnostics else None
+        )
+
+        if collect_diagnostics:
+            solve_count = 0
+
+            def inverse_solve(vector):
+                nonlocal solve_count
+                solve_count += 1
+                return lu.solve(vector)
+        else:
+            inverse_solve = lu.solve
+
+        opinv = spsl.LinearOperator(
+            matrix.shape, matvec=inverse_solve, dtype=matrix.dtype,
+        )
+        started = time.perf_counter() if collect_diagnostics else None
+        values, vectors = spsl.eigsh(matrix, OPinv=opinv, **eigsh_kwargs)
+        diagnostics = None
+        if collect_diagnostics:
+            lu_nnz = lu.L.nnz + lu.U.nnz
+            diagnostics = {
+                'path': 'explicit_shift_invert',
+                'permc_spec': permc_spec,
+                'factorization_seconds': factorization_seconds,
+                'eigsh_seconds': time.perf_counter() - started,
+                'opinv_solve_count': solve_count,
+                'L_nnz': lu.L.nnz,
+                'U_nnz': lu.U.nnz,
+                'LU_nnz': lu_nnz,
+                'fill_ratio': lu_nnz / shifted.nnz,
+            }
+
+    order = np.argsort(values)
+    return np.real(values[order]), vectors[:, order], diagnostics
+
+
 class Gridium4Mode(_GridiumSpectrumSweepMixin):
+    """Four-mode Gridium model with optional Stage-1 numerical controls.
+
+    The ``stage1_*`` arguments configure only the numerical eigensolver; they
+    do not alter the Gridium Hamiltonian or any physical model parameter.
+    ``stage1_sigma=None`` selects the existing Gridium-derived default shift,
+    rather than SciPy's ordinary no-shift ``sigma=None`` behavior.
+    """
 
     #numerical cutoff: 
     #n1max: compact-charge cutoff
@@ -245,13 +331,26 @@ class Gridium4Mode(_GridiumSpectrumSweepMixin):
     #nlev: number of final low-energy states stored
     def __init__(self, EJ, EC, EL, ELK, EJS, ECS, eC, eP, eps_J=0.0, eps_LK=0.0,
                  ng=0.0, phi_ext=0.0, theta_ext=np.pi, nlev=6,
-                 n1max=4, N2=51, L2=12.0, N3=51, L3=13.0, N4=8, nkeep=100):
+                 n1max=4, N2=51, L2=12.0, N3=51, L3=13.0, N4=8, nkeep=100,
+                 stage1_sigma=None, stage1_which='LM', stage1_tol=1e-8,
+                 stage1_ncv=None, stage1_v0=None, stage1_permc_spec=None,
+                 stage1_collect_diagnostics=False):
         self.EJ, self.EC, self.EL, self.ELK, self.EJS, self.ECS = EJ, EC, EL, ELK, EJS, ECS
         self.eC, self.eP = eC, eP
         self.eps_J, self.eps_LK, self.ng = eps_J, eps_LK, ng
         self.phi_ext, self.theta_ext, self.nlev = phi_ext, theta_ext, nlev
         self.n1max, self.N2, self.L2, self.N3, self.L3 = n1max, N2, L2, N3, L3
         self.N4, self.nkeep = N4, nkeep
+        self.stage1_sigma = stage1_sigma
+        self.stage1_which = stage1_which
+        self.stage1_tol = stage1_tol
+        self.stage1_ncv = stage1_ncv
+        self.stage1_v0 = (
+            None if stage1_v0 is None else np.array(stage1_v0, copy=True)
+        )
+        self.stage1_permc_spec = stage1_permc_spec
+        self.stage1_collect_diagnostics = stage1_collect_diagnostics
+        self.stage1_solver_diagnostics = None
         self._evals = None
         self._ops = None
 
@@ -263,9 +362,17 @@ class Gridium4Mode(_GridiumSpectrumSweepMixin):
             phi_ext=self.phi_ext, theta_ext=self.theta_ext, nlev=self.nlev,
             n1max=self.n1max, N2=self.N2, L2=self.L2, N3=self.N3, L3=self.L3,
             N4=self.N4, nkeep=self.nkeep,
+            stage1_sigma=self.stage1_sigma, stage1_which=self.stage1_which,
+            stage1_tol=self.stage1_tol, stage1_ncv=self.stage1_ncv,
+            stage1_v0=(
+                None if self.stage1_v0 is None else self.stage1_v0.copy()
+            ),
+            stage1_permc_spec=self.stage1_permc_spec,
+            stage1_collect_diagnostics=self.stage1_collect_diagnostics,
         )
 
     def _solve(self, compute_operators=False):
+        self.stage1_solver_diagnostics = None
         #first get the coefficients
         ECm, K, EJ1, EJ2 = _coeffs(self.EJ, self.EC, self.EL, self.ELK, self.EJS, self.ECS,
                                    self.eps_J, self.eps_LK, eC=self.eC, eP=self.eP)
@@ -279,14 +386,24 @@ class Gridium4Mode(_GridiumSpectrumSweepMixin):
             self.phi_ext, self.theta_ext,
             self.n1max, self.N2, self.L2, self.N3, self.L3,
         )
-        sigma = -(EJ1 + EJ2 + self.EJS + 10.0)
+        default_sigma = -(EJ1 + EJ2 + self.EJS + 10.0)
+        sigma = default_sigma if self.stage1_sigma is None else self.stage1_sigma
         nkeep = min(self.nkeep, H1.shape[0]) 
         if nkeep == H1.shape[0]:
+            started = time.perf_counter() if self.stage1_collect_diagnostics else None
             w1, V = np.linalg.eigh(H1.toarray())
+            if self.stage1_collect_diagnostics:
+                self.stage1_solver_diagnostics = {
+                    'path': 'dense',
+                    'eigh_seconds': time.perf_counter() - started,
+                }
         else:
-            w1, V = spsl.eigsh(H1.tocsc(), k=nkeep, sigma=sigma, which='LM', tol=1e-8) #keeping the lowest nkeep eigenpairs 
-            order = np.argsort(w1)
-            w1, V = np.real(w1[order]), V[:, order]
+            w1, V, self.stage1_solver_diagnostics = _stage1_eigensolve(
+                H1, k=nkeep, sigma=sigma, which=self.stage1_which,
+                tol=self.stage1_tol, ncv=self.stage1_ncv, v0=self.stage1_v0,
+                permc_spec=self.stage1_permc_spec,
+                collect_diagnostics=self.stage1_collect_diagnostics,
+            )
 
         # theta4: exactly harmonic.  A n4^2 + B th4^2, A = 4 EC44, B = 0.5 K44
         A4, B4 = 4 * ECm[3, 3], 0.5 * K[2, 2]

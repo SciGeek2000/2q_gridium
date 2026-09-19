@@ -24,10 +24,12 @@ import scipy.sparse.linalg as spsl
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import Circuit_Objs.qchard_gridium_netlist as gridium_netlist
 from Circuit_Objs.qchard_gridium_netlist import (
     Gridium4Mode,
     _assemble_nonlinear_sector,
     _coeffs,
+    _stage1_eigensolve,
 )
 
 
@@ -273,6 +275,193 @@ def _tiny_complete_model(**overrides):
     settings.update(overrides)
     settings['nkeep'] = (2 * settings['n1max'] + 1) * settings['N2'] * settings['N3']
     return Gridium4Mode(**settings)
+
+
+def _small_stage1_problem():
+    settings = dict(
+        **REGIME_A, **FOUR_MODE_CAPS,
+        eps_J=0.07, eps_LK=0.04, ng=0.17,
+        phi_ext=0.31, theta_ext=2.63,
+        n1max=1, N2=7, L2=4.0, N3=7, L3=4.0,
+    )
+    ECmat, K, EJ1, EJ2 = _coeffs(
+        settings['EJ'], settings['EC'], settings['EL'], settings['ELK'],
+        settings['EJS'], settings['ECS'], settings['eps_J'],
+        settings['eps_LK'], eC=settings['eC'], eP=settings['eP'],
+    )
+    matrix, _ = _assemble_nonlinear_sector(
+        ECmat[:3, :3], K[:2, :2], EJ1, EJ2, settings['EJS'],
+        settings['ng'], settings['phi_ext'], settings['theta_ext'],
+        settings['n1max'], settings['N2'], settings['L2'],
+        settings['N3'], settings['L3'],
+    )
+    sigma = -(EJ1 + EJ2 + settings['EJS'] + 10.0)
+    return settings, matrix, sigma
+
+
+def test_stage1_explicit_shift_invert_matches_scipy_default_path():
+    _, matrix, sigma = _small_stage1_problem()
+    v0 = np.linspace(1.0, 2.0, matrix.shape[0])
+    common = dict(
+        k=14, sigma=sigma, which='LM', tol=1e-10, ncv=32, v0=v0,
+        collect_diagnostics=True,
+    )
+    default_values, default_vectors, default_diagnostics = _stage1_eigensolve(
+        matrix, **common,
+    )
+    explicit_values, explicit_vectors, explicit_diagnostics = _stage1_eigensolve(
+        matrix, permc_spec='MMD_AT_PLUS_A', **common,
+    )
+
+    np.testing.assert_allclose(
+        explicit_values, default_values, rtol=1e-12, atol=1e-11,
+    )
+    for values, vectors in (
+        (default_values, default_vectors),
+        (explicit_values, explicit_vectors),
+    ):
+        residuals = np.linalg.norm(
+            matrix @ vectors - vectors * values[np.newaxis, :], axis=0,
+        )
+        assert np.max(residuals) < 1e-8
+
+    assert default_diagnostics['path'] == 'scipy_default_shift_invert'
+    assert explicit_diagnostics['path'] == 'explicit_shift_invert'
+    assert explicit_diagnostics['permc_spec'] == 'MMD_AT_PLUS_A'
+    assert explicit_diagnostics['factorization_seconds'] >= 0.0
+    assert explicit_diagnostics['eigsh_seconds'] >= 0.0
+    assert explicit_diagnostics['opinv_solve_count'] > 0
+    assert explicit_diagnostics['LU_nnz'] > 0
+    assert explicit_diagnostics['fill_ratio'] > 0.0
+
+
+def test_stage1_legacy_defaults_preserve_original_eigsh_call(monkeypatch):
+    settings, matrix, expected_sigma = _small_stage1_problem()
+    captured = []
+
+    def fake_eigsh(actual_matrix, **kwargs):
+        captured.append((actual_matrix, kwargs))
+        values, vectors = np.linalg.eigh(actual_matrix.toarray())
+        selected = np.argsort(np.abs(values - kwargs['sigma']))[:kwargs['k']]
+        return values[selected], vectors[:, selected]
+
+    def unexpected_splu(*args, **kwargs):
+        raise AssertionError('The legacy/default path must not call splu.')
+
+    monkeypatch.setattr(spsl, 'eigsh', fake_eigsh)
+    monkeypatch.setattr(spsl, 'splu', unexpected_splu)
+
+    model = Gridium4Mode(
+        **settings, N4=3, nkeep=14, nlev=6,
+    )
+    levels = model.levels()
+
+    assert len(captured) == 1
+    actual_matrix, kwargs = captured[0]
+    assert actual_matrix.shape == matrix.shape
+    assert kwargs['sigma'] == expected_sigma
+    assert kwargs['which'] == 'LM'
+    assert kwargs['tol'] == 1e-8
+    assert kwargs['ncv'] is None
+    assert kwargs['v0'] is None
+    assert 'OPinv' not in kwargs
+    assert np.all(np.isfinite(levels))
+    assert model.stage1_solver_diagnostics is None
+
+
+def test_spectrum_sweep_preserves_but_does_not_sweep_stage1_options(monkeypatch):
+    settings, matrix, sigma = _small_stage1_problem()
+    supplied_v0 = np.linspace(1.0, 2.0, matrix.shape[0])
+    model = Gridium4Mode(
+        **settings, N4=3, nkeep=14, nlev=6,
+        stage1_sigma=sigma, stage1_which='LM', stage1_tol=2e-9,
+        stage1_ncv=30, stage1_v0=supplied_v0,
+        stage1_permc_spec='MMD_AT_PLUS_A',
+        stage1_collect_diagnostics=True,
+    )
+    supplied_v0[:] = -1.0
+    assert not np.array_equal(model.stage1_v0, supplied_v0)
+    model.stage1_solver_diagnostics = {'transient': True}
+
+    constructor_kwargs = model._constructor_kwargs()
+    reconstructed = Gridium4Mode(**constructor_kwargs)
+    assert reconstructed.stage1_sigma == sigma
+    assert reconstructed.stage1_which == 'LM'
+    assert reconstructed.stage1_tol == 2e-9
+    assert reconstructed.stage1_ncv == 30
+    assert reconstructed.stage1_permc_spec == 'MMD_AT_PLUS_A'
+    assert reconstructed.stage1_collect_diagnostics is True
+    np.testing.assert_array_equal(reconstructed.stage1_v0, model.stage1_v0)
+    assert reconstructed.stage1_v0 is not model.stage1_v0
+    assert reconstructed.stage1_solver_diagnostics is None
+    assert 'stage1_solver_diagnostics' not in constructor_kwargs
+
+    def inspect_tasks(tasks, num_cpus):
+        tasks = list(tasks)
+        assert num_cpus == 1
+        for kwargs, parameter, _, evals_count in tasks:
+            assert parameter == 'phi_ext'
+            assert kwargs['stage1_sigma'] == sigma
+            assert kwargs['stage1_tol'] == 2e-9
+            assert kwargs['stage1_ncv'] == 30
+            assert kwargs['stage1_permc_spec'] == 'MMD_AT_PLUS_A'
+            np.testing.assert_array_equal(kwargs['stage1_v0'], model.stage1_v0)
+            assert 'stage1_solver_diagnostics' not in kwargs
+        return [np.zeros(task[3]) for task in tasks]
+
+    monkeypatch.setattr(gridium_netlist, '_ordered_process_map', inspect_tasks)
+    result = model.get_spectrum_vs_paramvals(
+        'phi_ext', [0.1, 0.2], evals_count=4, num_cpus=1,
+    )
+    assert result.energy_table.shape == (2, 4)
+
+    for parameter in gridium_netlist._STAGE1_NUMERICAL_PARAMETERS:
+        with pytest.raises(ValueError, match='Unknown or unsupported sweep parameter'):
+            model.get_spectrum_vs_paramvals(parameter, [0.0], num_cpus=1)
+
+
+def test_explicit_shift_invert_preserves_downstream_model_and_operators():
+    settings, matrix, sigma = _small_stage1_problem()
+    v0 = np.linspace(1.0, 2.0, matrix.shape[0])
+    numerical = dict(
+        N4=3, nkeep=14, nlev=6, stage1_sigma=sigma,
+        stage1_which='LM', stage1_tol=1e-10, stage1_ncv=32,
+        stage1_v0=v0, stage1_collect_diagnostics=True,
+    )
+    default = Gridium4Mode(**settings, **numerical)
+    explicit = Gridium4Mode(
+        **settings, **numerical, stage1_permc_spec='MMD_AT_PLUS_A',
+    )
+
+    default_operators = {
+        name: getattr(default, name)().full()
+        for name in ('d_phi', 'd_theta', 'n1', 'phase2', 'grid_n', 'grid_phi')
+    }
+    explicit_operators = {
+        name: getattr(explicit, name)().full()
+        for name in default_operators
+    }
+
+    np.testing.assert_allclose(
+        explicit.levels(), default.levels(), rtol=1e-11, atol=1e-10,
+    )
+    # This generic asymmetric point is nondegenerate, so the two eigensolvers
+    # may differ only by independent eigenvector phases, removed by abs().
+    for name in default_operators:
+        np.testing.assert_allclose(
+            np.abs(explicit_operators[name]), np.abs(default_operators[name]),
+            rtol=1e-9, atol=1e-10,
+        )
+
+    physical_parameters = (
+        'EJ', 'EC', 'EL', 'ELK', 'EJS', 'ECS', 'eC', 'eP',
+        'eps_J', 'eps_LK', 'ng', 'phi_ext', 'theta_ext',
+        'n1max', 'N2', 'L2', 'N3', 'L3', 'N4', 'nkeep', 'nlev',
+    )
+    for name in physical_parameters:
+        assert getattr(explicit, name) == getattr(default, name)
+    assert default.stage1_solver_diagnostics['path'] == 'scipy_default_shift_invert'
+    assert explicit.stage1_solver_diagnostics['path'] == 'explicit_shift_invert'
 
 
 @pytest.mark.parametrize('parameter,operator_name', [

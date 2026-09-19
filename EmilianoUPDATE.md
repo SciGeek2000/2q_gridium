@@ -82,3 +82,7 @@ Conclusion: increasing `nkeep` by energy ordering alone is no longer the preferr
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
 - Can we treat the branch-derived `qchard_gridium_netlist.Gridium4Mode` model as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
+
+### Solver implementation follow-up
+
+Productionized the validated `MMD_AT_PLUS_A` Stage-1 shift-invert option in `Gridium4Mode` without changing the default solver path or Hamiltonian physics. The implementation keeps the historical implicit SciPy shift-invert behavior as the default, adds opt-in numerical solver controls and diagnostics, prevents solver settings from being treated as physical sweep parameters, and includes bounded regression tests for legacy behavior, numerical equivalence, downstream spectra/operators, and sweep reconstruction. The bounded four-mode validation suite now reports 17 passed and 5 intentionally skipped production-scale tests.
