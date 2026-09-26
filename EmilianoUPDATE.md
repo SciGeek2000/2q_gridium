@@ -73,3 +73,14 @@ Next: Stop brute-force energy-only `k > 180` growth and treat retained-subspace 
 - For the physical flux drive, is the intended control line primarily modulation of `phi_ext`, `theta_ext`, or a calibrated linear combination of the two?
 - Can we treat `qchard_gridium_netlist.Gridium4Mode` as the intended physical four-mode asymmetric model going forward?
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
+
+
+## Work Block — 2026-09-25
+
+Completed: Incorporated Thomas's control-operator clarification: `Gridium4Mode.grid_phi()` is now documented as the primary abstract global Gridium phase-control coordinate for current gate work, while `d_theta()` and `d_phi()` are explicitly secondary external-flux response/sensitivity observables. The physical `theta_ext` control is low-pass filtered and is not the present high-frequency microwave-drive proxy. Updated the existing `IdealGridium` three-tone workflow documentation to make clear that `IdealGridium.phi()` is likewise an abstract global-phase control model and that the historical `drive_type='flux'` label does not identify a calibrated experimental line. Added permanent validation-artifact generation for serious frozen gates, including state propagation, leakage, actual drive traces, convergence figures/tables, per-run summaries, full time-series CSV data, and a combined Pareto-ready run table under `Figures/Rabi_3Photon/`. Reproduced the frozen X90 candidate at 99.2310% logical fidelity with 0.06124% final leakage and 0.19751% peak leakage, and the frozen X180 candidate at 98.6698% logical fidelity with 0.47144% final leakage and 0.49800% peak leakage. Recorded that a physics-informed retained basis is acceptable for this Gridium family; the goal is not a universal reduced-basis selection algorithm, and `d_theta` convergence alone should not block the current gate-control program.
+
+Next: Require the artifact workflow for each serious validated gate run and use the saved figures/tables for later fidelity-duration-leakage comparisons. When transferring the frozen X90/X180 workflow to `Gridium4Mode`, couple conceptually through `grid_phi()` and treat `d_theta`/`d_phi` convergence as secondary response diagnostics rather than gate-readiness criteria.
+
+### Questions for Thomas
+
+- None for this block.

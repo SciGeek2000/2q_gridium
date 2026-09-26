@@ -13,6 +13,11 @@
 Simulations/four_mode_gkp/
 Simulations/Rabi_3photon/
 
+# Permanent frozen-gate artifact generator; keep other new Rabi scratch files ignored.
+!Simulations/Rabi_3Photon/
+Simulations/Rabi_3Photon/*
+!Simulations/Rabi_3Photon/generate_validation_artifacts.py
+
 # Local prompt/research infrastructure
 docs/
 research/

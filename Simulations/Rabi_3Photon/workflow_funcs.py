@@ -1,7 +1,11 @@
-"""IdealGridium flux-drive helpers for the Rabi_3Photon workflow.
+"""IdealGridium global-phase-control helpers for the Rabi_3Photon workflow.
 
 This module only supplies drive plumbing. It does not select a three-photon
-pathway, calibrate a flux line, or optimize pulse parameters.
+pathway, calibrate a physical control line, or optimize pulse parameters.
+The model couples every tone through :meth:`IdealGridium.phi`, the abstract
+global Gridium phase coordinate. The historical ``drive_type='flux'`` label is
+retained for compatibility and does not identify a particular experimental
+flux line.
 """
 
 from __future__ import annotations
@@ -25,6 +29,8 @@ __all__ = [
     'load_pulse_config',
     'logical_gate_target',
     'evaluate_logical_gate',
+    'state_population_trajectories',
+    'drive_coefficient_traces',
     'state_qubit_state',
     'solve',
     'solve_pulse_schedule',
@@ -37,7 +43,7 @@ __all__ = [
 
 @dataclass
 class PulseConfig:
-    """Configuration for one independently timed flux-drive tone.
+    """Configuration for one independently timed global-phase-control tone.
 
     Frequencies and detunings are in GHz, and times are in ns. If
     ``drive_frequency`` is omitted, the carrier is the absolute targeted
@@ -129,7 +135,8 @@ def _carrier_frequency(qubit: IdealGridium, pulse_cfg: PulseConfig) -> float:
 
 
 def _pulse_to_drive_term(
-        qubit: IdealGridium, pulse_cfg: PulseConfig, phi_operator: qt.Qobj
+        qubit: IdealGridium, pulse_cfg: PulseConfig,
+        global_phase_operator: qt.Qobj
         ) -> dict:
     if pulse_cfg.drive_type != 'flux':
         raise ValueError(
@@ -138,16 +145,17 @@ def _pulse_to_drive_term(
     initial, final = pulse_cfg.targeted_drive
     if not (0 <= initial < qubit.nlev and 0 <= final < qubit.nlev):
         raise ValueError('targeted_drive levels must be within qubit.nlev.')
-    matrix_element = abs(phi_operator[initial, final])
+    matrix_element = abs(global_phase_operator[initial, final])
     if np.isclose(matrix_element, 0.0):
         raise ValueError(
-            'The targeted transition has a zero flux matrix element; '
+            'The targeted transition has a zero global-phase matrix element; '
             'its drive normalization is undefined.')
 
-    # Preserve the prior workflow convention: normalize phi to the selected
-    # transition and apply drive_amplitude_factor as an operator scale.
+    # Preserve the prior workflow convention: normalize the abstract global
+    # phase coordinate to the selected transition and apply
+    # drive_amplitude_factor as an operator scale.
     drive_term = {
-        'operator': phi_operator / matrix_element,
+        'operator': global_phase_operator / matrix_element,
         'amplitude': pulse_cfg.drive_amplitude_factor,
         'omega_d': _carrier_frequency(qubit, pulse_cfg),
         'phi': pulse_cfg.carrier_phase,
@@ -285,6 +293,73 @@ def evaluate_logical_gate(U_t, target: str, t_points=None) -> dict:
     }
 
 
+def state_population_trajectories(U_t, initial_states=(0, 1)) -> dict:
+    """Return energy-eigenstate populations for selected initial levels.
+
+    The returned mapping contains one ``(time, final_level)`` array per input
+    state. It is independent of the interaction-picture phase convention.
+    """
+    propagators = [U_t] if isinstance(U_t, qt.Qobj) else list(U_t)
+    if not propagators:
+        raise ValueError('U_t must contain at least one propagator.')
+    matrices = np.asarray([
+        propagator.full() if isinstance(propagator, qt.Qobj)
+        else np.asarray(propagator, dtype=complex)
+        for propagator in propagators
+    ])
+    if (matrices.ndim != 3 or matrices.shape[1] != matrices.shape[2]):
+        raise ValueError('Every propagator must be a square matrix.')
+
+    populations = {}
+    for initial in initial_states:
+        initial = int(initial)
+        if initial < 0 or initial >= matrices.shape[1]:
+            raise ValueError('Initial states must be valid level indices.')
+        populations[initial] = np.abs(matrices[:, :, initial]) ** 2
+    return populations
+
+
+def drive_coefficient_traces(
+        qubit: IdealGridium,
+        pulse_configs: Sequence[PulseConfig],
+        t_points) -> list[dict]:
+    """Evaluate the exact scalar coefficient used for every pulse event.
+
+    Each trace includes the event's amplitude scaling. The corresponding
+    time-independent operator is the transition-normalized abstract global
+    phase coordinate returned by :meth:`IdealGridium.phi`.
+    """
+    _require_idealgridium(qubit)
+    configs = _coerce_pulse_configs(pulse_configs)
+    times = np.asarray(t_points, dtype=float)
+    if times.ndim != 1 or not np.all(np.isfinite(times)):
+        raise ValueError('t_points must be a finite one-dimensional sequence.')
+
+    global_phase_operator = qubit.phi()
+    drive_terms = [
+        _pulse_to_drive_term(qubit, config, global_phase_operator)
+        for config in configs
+    ]
+    traces = []
+    for config, drive_term in zip(configs, drive_terms):
+        tone_args = dict(drive_term)
+        tone_args.pop('operator')
+        amplitude = tone_args.pop('amplitude', 1.0)
+        coefficient = gates._IndependentDriveCoefficient(tone_args)
+        values = amplitude * np.asarray([
+            coefficient(time, {}) for time in times
+        ], dtype=float)
+        traces.append({
+            'transition': tuple(config.targeted_drive),
+            'carrier_frequency_ghz': _carrier_frequency(qubit, config),
+            'amplitude': float(config.drive_amplitude_factor),
+            'phase_rad': float(config.carrier_phase),
+            'detuning_ghz': float(config.drive_detuning),
+            'values': values,
+        })
+    return traces
+
+
 def state_qubit_state(
         qubit: IdealGridium,
         pulse_cfg1: PulseConfig | Sequence[PulseConfig],
@@ -314,7 +389,7 @@ def solve(
         comp_space: Sequence[int] = (0, 1),
         solve_method: str = 'propagator',
         mute: bool = False):
-    """Execute one, two, or three independent IdealGridium flux tones."""
+    """Execute one to three IdealGridium global-phase-control tones."""
     del comp_space  # Retained only for compatibility with the old entry point.
     _require_idealgridium(qubit)
     if solve_method != 'propagator':
@@ -350,9 +425,11 @@ def solve_pulse_schedule(
     if len(unique_tones) > 3:
         raise ValueError('A pulse schedule may contain at most three tones.')
 
-    phi_operator = qubit.phi()
+    # IdealGridium.phi() is the abstract global Gridium phase-control
+    # coordinate. It is not a commitment to a calibrated experimental line.
+    global_phase_operator = qubit.phi()
     drive_terms = [
-        _pulse_to_drive_term(qubit, config, phi_operator)
+        _pulse_to_drive_term(qubit, config, global_phase_operator)
         for config in configs
     ]
     final_time = max(config.T_start + config.T_gate for config in configs)

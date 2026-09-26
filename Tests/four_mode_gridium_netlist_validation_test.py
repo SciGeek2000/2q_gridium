@@ -659,8 +659,8 @@ def test_explicit_shift_invert_preserves_downstream_model_and_operators():
     ('phi_ext', 'd_phi'),
 ])
 
-#validates the two external-flux drive operators
-def test_four_mode_drive_operator_matches_brute_force_finite_difference(
+# Validates the two external-flux response/sensitivity operators.
+def test_four_mode_flux_response_matches_brute_force_finite_difference(
     parameter, operator_name,
 ):
     delta = 1e-5
@@ -970,7 +970,7 @@ def _doublet_block_singular_values(operator):
     return result
 
 
-def _serialize_drive_invariants(operators):
+def _serialize_flux_response_invariants(operators):
     return {
         name: {
             block: values.tolist()
@@ -980,7 +980,7 @@ def _serialize_drive_invariants(operators):
     }
 
 
-def _assert_drive_invariants_converged(label, baseline, refined):
+def _assert_flux_response_invariants_converged(label, baseline, refined):
     baseline_blocks = baseline['drive_block_singular_values_GHz_per_rad']
     refined_blocks = refined['drive_block_singular_values_GHz_per_rad']
     for operator_name in ('d_theta', 'd_phi'):
@@ -1005,12 +1005,12 @@ def _assert_drive_invariants_converged(label, baseline, refined):
             )
 
 
-def _assert_hand_drive_snapshot_converged(label, baseline, refined):
+def _assert_hand_flux_response_snapshot_converged(label, baseline, refined):
     _assert_transition_convergence(label, baseline, refined)
-    _assert_drive_invariants_converged(label, baseline, refined)
+    _assert_flux_response_invariants_converged(label, baseline, refined)
 
 
-def _hand_drive_snapshot(cutoffs, point, eps_J=0.0, eps_LK=0.0):
+def _hand_flux_response_snapshot(cutoffs, point, eps_J=0.0, eps_LK=0.0):
     inputs = dict(
         parameters=REGIME_A, capacitors=FOUR_MODE_CAPS, cutoffs=cutoffs,
         point=point, eps_J=eps_J, eps_LK=eps_LK, evals_count=6,
@@ -1029,7 +1029,9 @@ def _hand_drive_snapshot(cutoffs, point, eps_J=0.0, eps_LK=0.0):
         energies = model.levels()
         return dict(
             transitions_GHz=energies[1:] - energies[0],
-            drive_block_singular_values_GHz_per_rad=_serialize_drive_invariants(operators),
+            drive_block_singular_values_GHz_per_rad=(
+                _serialize_flux_response_invariants(operators)
+            ),
             finite=bool(
                 np.all(np.isfinite(energies))
                 and all(np.all(np.isfinite(operator)) for operator in operators.values())
@@ -1042,60 +1044,63 @@ def _hand_drive_snapshot(cutoffs, point, eps_J=0.0, eps_LK=0.0):
 
 @pytest.mark.skipif(
     not RUN_DRIVE,
-    reason='Set GRID_NETLIST_RUN_DRIVE_VALIDATION=1 for production drive convergence.',
+    reason=('Set legacy GRID_NETLIST_RUN_DRIVE_VALIDATION=1 for production '
+            'flux-response convergence.'),
 )
-def test_handwritten_drive_nkeep_320_to_360_convergence():
-    baseline = _hand_drive_snapshot(
+def test_handwritten_flux_response_nkeep_320_to_360_convergence():
+    baseline = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, nkeep=320), PROTECTION_POINT,
     )
-    refined = _hand_drive_snapshot(
+    refined = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, nkeep=360), PROTECTION_POINT,
     )
     assert baseline['finite'] and refined['finite']
-    _assert_hand_drive_snapshot_converged(
+    _assert_hand_flux_response_snapshot_converged(
         'symmetric handwritten nkeep 320 -> 360', baseline, refined,
     )
 
 
 @pytest.mark.skipif(
     not RUN_DRIVE,
-    reason='Set GRID_NETLIST_RUN_DRIVE_VALIDATION=1 for production drive convergence.',
+    reason=('Set legacy GRID_NETLIST_RUN_DRIVE_VALIDATION=1 for production '
+            'flux-response convergence.'),
 )
-def test_handwritten_drive_theta2_resolution_111_to_131_convergence():
-    baseline = _hand_drive_snapshot(
+def test_handwritten_flux_response_theta2_resolution_111_to_131_convergence():
+    baseline = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, N2=111, nkeep=320), PROTECTION_POINT,
     )
-    refined = _hand_drive_snapshot(
+    refined = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, N2=131, nkeep=320), PROTECTION_POINT,
     )
     assert baseline['finite'] and refined['finite']
-    _assert_hand_drive_snapshot_converged(
+    _assert_hand_flux_response_snapshot_converged(
         'symmetric handwritten N2 111 -> 131 at nkeep=320', baseline, refined,
     )
 
 
 @pytest.mark.skipif(
     not RUN_DRIVE,
-    reason='Set GRID_NETLIST_RUN_DRIVE_VALIDATION=1 for production drive convergence.',
+    reason=('Set legacy GRID_NETLIST_RUN_DRIVE_VALIDATION=1 for production '
+            'flux-response convergence.'),
 )
-def test_asymmetric_handwritten_spectrum_and_drive_convergence():
+def test_asymmetric_handwritten_spectrum_and_flux_response_convergence():
     eps_J, eps_LK = 0.10, 0.05
-    baseline = _hand_drive_snapshot(
+    baseline = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, N2=111, nkeep=320),
         PROTECTION_POINT, eps_J=eps_J, eps_LK=eps_LK,
     )
-    hierarchy_refined = _hand_drive_snapshot(
+    hierarchy_refined = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, N2=111, nkeep=360),
         PROTECTION_POINT, eps_J=eps_J, eps_LK=eps_LK,
     )
-    grid_refined = _hand_drive_snapshot(
+    grid_refined = _hand_flux_response_snapshot(
         dict(FINAL_HAND_CUTOFFS, N2=131, nkeep=320),
         PROTECTION_POINT, eps_J=eps_J, eps_LK=eps_LK,
     )
     assert baseline['finite'] and hierarchy_refined['finite'] and grid_refined['finite']
-    _assert_hand_drive_snapshot_converged(
+    _assert_hand_flux_response_snapshot_converged(
         'asymmetric handwritten nkeep 320 -> 360', baseline, hierarchy_refined,
     )
-    _assert_hand_drive_snapshot_converged(
+    _assert_hand_flux_response_snapshot_converged(
         'asymmetric handwritten N2 111 -> 131 at nkeep=320', baseline, grid_refined,
     )

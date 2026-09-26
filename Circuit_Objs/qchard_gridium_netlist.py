@@ -490,7 +490,7 @@ class Gridium4Mode(_GridiumSpectrumSweepMixin):
                 matrix = 0.5 * (matrix + matrix.conj().T)
                 if not np.all(np.isfinite(matrix)):
                     raise FloatingPointError(
-                        'Projected drive operator contains NaN/Inf entries.'
+                        'Projected physical operator contains NaN/Inf entries.'
                     )
                 return matrix
 
@@ -537,11 +537,19 @@ class Gridium4Mode(_GridiumSpectrumSweepMixin):
         return qt.Qobj(self._ops[key][:nlev, :nlev])
 
     def d_theta(self, nlev=None):
-        """Return dH/d(theta_ext) in the low-energy eigenbasis (GHz per radian)."""
+        """Return the external-flux response dH/d(theta_ext) (GHz/radian).
+
+        This is a bias-sensitivity observable, not the default abstract
+        high-frequency control operator for current Gridium gate work.
+        """
         return self._op('d_theta', nlev)
 
     def d_phi(self, nlev=None):
-        """Return dH/d(phi_ext) in the low-energy eigenbasis (GHz per radian)."""
+        """Return the external-flux response dH/d(phi_ext) (GHz/radian).
+
+        This response operator is distinct from :meth:`grid_phi`, the global
+        Gridium phase coordinate used as the present abstract control model.
+        """
         return self._op('d_phi', nlev)
 
     def n1(self, nlev=None):
@@ -557,5 +565,11 @@ class Gridium4Mode(_GridiumSpectrumSweepMixin):
         return self._op('grid_n', nlev)
 
     def grid_phi(self, nlev=None):
-        """Return paper Eq. S24 varphi2 = varphiS - varphiSigma, in radians."""
+        """Return the abstract global Gridium phase-control coordinate.
+
+        In the netlist basis this is paper Eq. S24
+        ``varphi2 = varphiS - varphiSigma = theta3 + theta2/2``, in radians.
+        It is the present conceptual control operator for four-mode gate work;
+        it does not by itself specify a calibrated experimental control line.
+        """
         return self._op('grid_phi', nlev)

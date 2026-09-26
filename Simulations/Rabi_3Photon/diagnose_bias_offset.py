@@ -88,7 +88,7 @@ def _pulse_configs(
         matrix_element = abs(phi[transition[0], transition[1]])
         if np.isclose(reference_matrix_element, 0.0):
             raise ValueError(
-                'Reference flux-drive normalization is undefined for {}.'
+                'Reference global-phase-control normalization is undefined for {}.'
                 .format(reference_transition))
 
         base_frequency = abs(reference_qubit.freq(*reference_transition))
