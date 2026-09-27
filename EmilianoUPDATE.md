@@ -95,3 +95,15 @@ Next: Run the frozen asymmetric N=71 k180 reference on a higher-memory machine u
 
 - Does the asymmetry-specific k170 basis with full k180 as the reference look reasonable for the N=71 spatial-convergence check?
 - Is there a preferred higher-memory machine or cluster for the N=71 run?
+
+
+## Work Block — 2026-09-27
+
+Completed: Successfully validated the asymmetric four-mode `N=71, k=180` reference. N=51→N=71 state tracking remained clean, and the dominant `grid_phi` pathway stayed `0 -> 7 -> 8 -> 1`. The old raw-index k170 basis failed because important shell states moved in rank, but a common physics-informed k172 basis works well at both N=51 and N=71. The first bounded four-mode X90 test showed that the intended pathway is activated, but the inherited pulse is not a viable gate: the full three-tone pulse gave `F_gate≈0.366` with \~28% leakage trapped in states 7 and 8, while the middle tone alone produced substantial logical rotation with negligible leakage. The main problem is now pulse-area, phase, and interference control rather than spatial convergence.
+
+Next: Build a driven four-state `{0,1,7,8}` model, compare it with the full propagation, run tone ablations, and determine how the direct logical drive interferes with the mediated pathway before any broad optimization.
+
+### Questions for Thomas
+
+- Does the common physics-informed k172 basis look reasonable for the next control studies?
+- Should we continue treating the three-tone mediated pathway as primary, or intentionally exploit the direct logical coupling from the middle tone?
