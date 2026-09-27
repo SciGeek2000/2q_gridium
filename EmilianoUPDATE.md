@@ -84,3 +84,32 @@ Next: Require the artifact workflow for each serious validated gate run and use 
 ### Questions for Thomas
 
 - None for this block.
+
+
+## Work Block — 2026-09-26
+
+Completed: Generalized the multitone workflow to use `IdealGridium.phi()` or
+`Gridium4Mode.grid_phi()` as the model's abstract global phase-control
+operator and verified bounded four-mode three-tone propagation. An initial
+retained-basis/spatial analysis accidentally reused a symmetric checkpoint;
+Sol review found that provenance mismatch and a noncontiguous state-tracking
+bug, so those convergence and pathway-change claims were withdrawn.
+
+A fresh asymmetric N=51 k180 reference was generated and validated with
+maximum eigenpair residual `5.43e-12`. The inherited symmetric shell failed.
+The asymmetric shell ranking identified Stage-1 state 170 as dominant and
+selected `0..159 + {162,163,165,167,168,170,171,172,176,177}`. Against full
+k180, this k170 basis gives `3.055 MHz` maximum transition error, `0.999938`
+minimum overlap, `0.452%` maximum primary-path `grid_phi` error, and `2.13%`
+maximum audited logical/leakage error. The leading path remains `0-7-8-1`.
+
+Conclusion: the retained basis is controlled for the next spatial check, but
+spatial convergence is not established. Run N=71 only on a higher-memory
+machine and do not begin four-mode X90/X180 optimization yet.
+
+Next: Perform one N=71 spatial-convergence calculation with the selected
+asymmetric k170 basis after resource review.
+
+### Questions for Thomas
+
+- None for this block.

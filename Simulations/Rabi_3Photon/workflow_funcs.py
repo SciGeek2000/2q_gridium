@@ -1,11 +1,11 @@
-"""IdealGridium global-phase-control helpers for the Rabi_3Photon workflow.
+"""Global-phase-control helpers for the Rabi_3Photon workflow.
 
 This module only supplies drive plumbing. It does not select a three-photon
 pathway, calibrate a physical control line, or optimize pulse parameters.
-The model couples every tone through :meth:`IdealGridium.phi`, the abstract
-global Gridium phase coordinate. The historical ``drive_type='flux'`` label is
-retained for compatibility and does not identify a particular experimental
-flux line.
+The workflow couples every tone through the model's abstract global phase
+coordinate: :meth:`IdealGridium.phi` or four-mode ``grid_phi()``. The
+historical ``drive_type='flux'`` label is retained for compatibility and does
+not identify a particular experimental flux line.
 """
 
 from __future__ import annotations
@@ -78,9 +78,9 @@ class PulseConfig:
             raise ValueError('T_start must be non-negative.')
 
 
-def load_qubit(qubit: IdealGridium, directory: str | Path | None = None):
-    """Load a cached IdealGridium when an explicit cache directory is given."""
-    _require_idealgridium(qubit)
+def load_qubit(qubit, directory: str | Path | None = None):
+    """Load a cached supported Gridium model when requested."""
+    _require_supported_gridium(qubit)
     if directory is None:
         return qubit
 
@@ -88,7 +88,7 @@ def load_qubit(qubit: IdealGridium, directory: str | Path | None = None):
     if qubit_path.exists():
         with qubit_path.open('rb') as stream:
             qubit = dill.load(stream)
-        _require_idealgridium(qubit)
+        _require_supported_gridium(qubit)
     return qubit
 
 
@@ -101,9 +101,26 @@ def load_pulse_config(path: str | Path) -> PulseConfig:
     return PulseConfig(**data)
 
 
-def _require_idealgridium(qubit):
-    if not isinstance(qubit, IdealGridium):
-        raise TypeError('Rabi_3Photon currently supports IdealGridium only.')
+def _require_supported_gridium(qubit):
+    if not isinstance(qubit, IdealGridium) and not callable(
+            getattr(qubit, 'grid_phi', None)):
+        raise TypeError(
+            'Rabi_3Photon requires IdealGridium or a four-mode model with '
+            'grid_phi().')
+
+
+def _global_phase_operator(qubit):
+    """Return the model-specific abstract global Gridium phase operator."""
+    _require_supported_gridium(qubit)
+    if callable(getattr(qubit, 'grid_phi', None)):
+        return qubit.grid_phi()
+    return qubit.phi()
+
+
+def _bare_hamiltonian(qubit):
+    if callable(getattr(qubit, 'H', None)):
+        return qubit.H()
+    return qt.Qobj(np.diag(np.asarray(qubit.levels(nlev=qubit.nlev))))
 
 
 def _coerce_pulse_configs(
@@ -123,11 +140,18 @@ def _coerce_pulse_configs(
     return configs
 
 
+def _transition_frequency(qubit, initial, final):
+    if callable(getattr(qubit, 'freq', None)):
+        return abs(qubit.freq(initial, final))
+    levels = np.asarray(qubit.levels(nlev=max(initial, final) + 1))
+    return abs(levels[final] - levels[initial])
+
+
 def _carrier_frequency(qubit: IdealGridium, pulse_cfg: PulseConfig) -> float:
     initial, final = pulse_cfg.targeted_drive
     base_frequency = pulse_cfg.drive_frequency
     if base_frequency is None:
-        base_frequency = abs(qubit.freq(initial, final))
+        base_frequency = _transition_frequency(qubit, initial, final)
     carrier = float(base_frequency) + float(pulse_cfg.drive_detuning)
     if not np.isfinite(carrier) or carrier < 0:
         raise ValueError('The carrier frequency must be finite and non-negative.')
@@ -327,15 +351,16 @@ def drive_coefficient_traces(
 
     Each trace includes the event's amplitude scaling. The corresponding
     time-independent operator is the transition-normalized abstract global
-    phase coordinate returned by :meth:`IdealGridium.phi`.
+    phase coordinate returned by :meth:`IdealGridium.phi` or four-mode
+    ``grid_phi()``.
     """
-    _require_idealgridium(qubit)
+    _require_supported_gridium(qubit)
     configs = _coerce_pulse_configs(pulse_configs)
     times = np.asarray(t_points, dtype=float)
     if times.ndim != 1 or not np.all(np.isfinite(times)):
         raise ValueError('t_points must be a finite one-dimensional sequence.')
 
-    global_phase_operator = qubit.phi()
+    global_phase_operator = _global_phase_operator(qubit)
     drive_terms = [
         _pulse_to_drive_term(qubit, config, global_phase_operator)
         for config in configs
@@ -366,7 +391,7 @@ def state_qubit_state(
         pulse_cfg2: PulseConfig | None = None,
         pulse_cfg3: PulseConfig | None = None):
     """Print the targeted transition and resolved carrier for each tone."""
-    _require_idealgridium(qubit)
+    _require_supported_gridium(qubit)
     configs = _coerce_pulse_configs(pulse_cfg1, pulse_cfg2, pulse_cfg3)
     _print_pulse_configs(qubit, configs)
 
@@ -377,7 +402,8 @@ def _print_pulse_configs(qubit: IdealGridium, configs):
         print(
             'Tone {} targeting transition {} to {}: {:.6f} GHz; '
             'detuning {:.6f} GHz; carrier {:.6f} GHz'.format(
-                index, initial, final, abs(qubit.freq(initial, final)),
+                index, initial, final, _transition_frequency(
+                    qubit, initial, final),
                 config.drive_detuning, _carrier_frequency(qubit, config)))
 
 
@@ -389,9 +415,9 @@ def solve(
         comp_space: Sequence[int] = (0, 1),
         solve_method: str = 'propagator',
         mute: bool = False):
-    """Execute one to three IdealGridium global-phase-control tones."""
+    """Execute one to three abstract global-phase-control tones."""
     del comp_space  # Retained only for compatibility with the old entry point.
-    _require_idealgridium(qubit)
+    _require_supported_gridium(qubit)
     if solve_method != 'propagator':
         raise ValueError("Only solve_method='propagator' is implemented.")
 
@@ -411,7 +437,7 @@ def solve_pulse_schedule(
     protocols. Distinct tones are identified by their targeted transition,
     resolved carrier frequency, and carrier phase.
     """
-    _require_idealgridium(qubit)
+    _require_supported_gridium(qubit)
     configs = list(pulse_configs)
     if not configs:
         raise ValueError('A pulse schedule must contain at least one event.')
@@ -425,9 +451,9 @@ def solve_pulse_schedule(
     if len(unique_tones) > 3:
         raise ValueError('A pulse schedule may contain at most three tones.')
 
-    # IdealGridium.phi() is the abstract global Gridium phase-control
-    # coordinate. It is not a commitment to a calibrated experimental line.
-    global_phase_operator = qubit.phi()
+    # Select the model's abstract global Gridium phase coordinate. This is not
+    # a commitment to a calibrated experimental line.
+    global_phase_operator = _global_phase_operator(qubit)
     drive_terms = [
         _pulse_to_drive_term(qubit, config, global_phase_operator)
         for config in configs
@@ -444,7 +470,7 @@ def solve_pulse_schedule(
             raise ValueError(
                 't_points must increase from zero through the schedule end.')
     U_t = gates.evolution_operator_multitone_microwave(
-        qubit.H(), drive_terms, t_points=t_points,
+            _bare_hamiltonian(qubit), drive_terms, t_points=t_points,
         solver_options=solver_options)
 
     if not mute:

@@ -24,10 +24,32 @@ def workflow():
 
 
 @pytest.fixture(scope='module')
-def idealgridium():
-    return IdealGridium(
-        E_L=0.5, E_C=0.5, E_s=4, E_2J=12,
-        ng=0, phi_ext=np.pi, nlev=4, nlev_lc=40, units='GHz')
+def idealgridium(workflow):
+    """IdealGridium interface fixture with no numerical eigensolve."""
+    class IdealGridiumStub(IdealGridium):
+        def __init__(self):
+            self.nlev = 4
+            self._levels = np.array([0.0, 0.5, 1.2, 2.1])
+            self._phi = workflow.qt.Qobj(np.array([
+                [0.0, 0.8, 0.0, 0.0],
+                [0.8, 0.0, 0.6, 0.0],
+                [0.0, 0.6, 0.0, 0.4],
+                [0.0, 0.0, 0.4, 0.0],
+            ]))
+
+        def levels(self, nlev=None):
+            return self._levels[:nlev]
+
+        def freq(self, initial, final):
+            return self._levels[final] - self._levels[initial]
+
+        def phi(self):
+            return self._phi
+
+        def H(self):
+            return workflow.qt.Qobj(np.diag(self._levels))
+
+    return IdealGridiumStub()
 
 
 def _pulse_configs(workflow, tone_count):
@@ -142,3 +164,55 @@ def test_three_tone_yaml_wrapper_executes(
     figure = workflow.solve_two_photon_drive(
         idealgridium, paths[0], paths[1], n_shown_states=2)
     assert len(figure.axes) == 2
+
+
+@pytest.fixture(scope='module')
+def four_mode_gridium(workflow):
+    """Minimal four-mode interface without a circuit eigensolve."""
+    class FourModeStub:
+        nlev = 5
+
+        def __init__(self):
+            self._levels = np.array([0.0, 0.4, 1.1, 1.9, 2.8])
+            matrix = np.array([
+                [0.0, 0.7, 0.0, 0.3, 0.0],
+                [0.7, 0.0, 0.2, 0.0, 0.4],
+                [0.0, 0.2, 0.0, 0.5, 0.0],
+                [0.3, 0.0, 0.5, 0.0, 0.6],
+                [0.0, 0.4, 0.0, 0.6, 0.0],
+            ])
+            self._grid_phi = workflow.qt.Qobj(matrix)
+
+        def levels(self, nlev=None):
+            return self._levels[:nlev]
+
+        def grid_phi(self):
+            return self._grid_phi
+
+    return FourModeStub()
+
+
+def test_four_mode_selects_grid_phi_and_propagates_three_tones(
+        workflow, four_mode_gridium):
+    operator = four_mode_gridium.grid_phi()
+    assert workflow._global_phase_operator(four_mode_gridium) == operator
+    config = workflow.PulseConfig(
+        T_gate=1.0, pulse_shape='square', targeted_drive=(0, 1),
+        drive_amplitude_factor=0.05, drive_type='flux')
+    term = workflow._pulse_to_drive_term(
+        four_mode_gridium, config, operator)
+    assert term['operator'] == operator / abs(operator[0, 1])
+
+    transitions = ((0, 1), (0, 3), (1, 4))
+    configs = [workflow.PulseConfig(
+        T_gate=1.0, T_start=0.0, pulse_shape='square',
+        targeted_drive=transition, drive_amplitude_factor=0.03,
+        drive_type='flux') for transition in transitions]
+    t_points, propagators = workflow.solve(
+        four_mode_gridium, configs, mute=True)
+    assert len(propagators) == len(t_points)
+    assert propagators[-1].shape == (four_mode_gridium.nlev,
+                                     four_mode_gridium.nlev)
+    np.testing.assert_allclose(
+        (propagators[-1].dag() * propagators[-1]).full(),
+        np.eye(four_mode_gridium.nlev), atol=3e-4)

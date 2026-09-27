@@ -17,6 +17,11 @@ Simulations/Rabi_3photon/
 !Simulations/Rabi_3Photon/
 Simulations/Rabi_3Photon/*
 !Simulations/Rabi_3Photon/generate_validation_artifacts.py
+!Simulations/Rabi_3Photon/four_mode_control_audit.py
+!Simulations/Rabi_3Photon/four_mode_retained_basis_audit.py
+!Simulations/Rabi_3Photon/four_mode_asymmetric_shell_audit.py
+!Simulations/Rabi_3Photon/run_four_mode_spatial71_reference.py
+!Simulations/Rabi_3Photon/README_spatial71_reference.md
 
 # Local prompt/research infrastructure
 docs/
