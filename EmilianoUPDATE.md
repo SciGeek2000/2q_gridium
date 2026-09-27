@@ -75,41 +75,23 @@ Next: Stop brute-force energy-only `k > 180` growth and treat retained-subspace 
 - Is there an author-approved resolution of the factor-of-two discrepancy in the inductive term between Eqs. S23 and S26?
 
 
-## Work Block — 2026-09-25
+## Work Block — 2026-09-25–2026-09-26
 
-Completed: Incorporated Thomas's control-operator clarification: `Gridium4Mode.grid_phi()` is now documented as the primary abstract global Gridium phase-control coordinate for current gate work, while `d_theta()` and `d_phi()` are explicitly secondary external-flux response/sensitivity observables. The physical `theta_ext` control is low-pass filtered and is not the present high-frequency microwave-drive proxy. Updated the existing `IdealGridium` three-tone workflow documentation to make clear that `IdealGridium.phi()` is likewise an abstract global-phase control model and that the historical `drive_type='flux'` label does not identify a calibrated experimental line. Added permanent validation-artifact generation for serious frozen gates, including state propagation, leakage, actual drive traces, convergence figures/tables, per-run summaries, full time-series CSV data, and a combined Pareto-ready run table under `Figures/Rabi_3Photon/`. Reproduced the frozen X90 candidate at 99.2310% logical fidelity with 0.06124% final leakage and 0.19751% peak leakage, and the frozen X180 candidate at 98.6698% logical fidelity with 0.47144% final leakage and 0.49800% peak leakage. Recorded that a physics-informed retained basis is acceptable for this Gridium family; the goal is not a universal reduced-basis selection algorithm, and `d_theta` convergence alone should not block the current gate-control program.
+Completed: Incorporated Thomas's clarification that the current abstract four-mode control coordinate is `Gridium4Mode.grid_phi()`, with `phi_grid = theta3 + theta2/2`; `d_theta()` and `d_phi()` are external-flux response/sensitivity operators rather than the default microwave-drive proxy. Reproduced the frozen one-mode gates without reoptimization. X90 has duration `39.8007574 ns`, gate fidelity `0.9923100794`, process fidelity `0.9884651191`, final leakage `0.061239%`, and peak leakage `0.197513%`. X180 has duration `21.4963121 ns`, gate fidelity `0.9866983593`, process fidelity `0.9800475389`, final leakage `0.471441%`, and peak leakage `0.498001%`. Added permanent population, leakage, drive, intermediate-population, convergence, and CSV artifacts for these frozen validations.
 
-Next: Require the artifact workflow for each serious validated gate run and use the saved figures/tables for later fidelity-duration-leakage comparisons. When transferring the frozen X90/X180 workflow to `Gridium4Mode`, couple conceptually through `grid_phi()` and treat `d_theta`/`d_phi` convergence as secondary response diagnostics rather than gate-readiness criteria.
+Generalized the multitone workflow so `IdealGridium` uses `phi()` and `Gridium4Mode` uses `grid_phi()`, with every tone coupled through the same full operator and the existing per-target matrix-element normalization preserved. A reduced-basis four-mode three-tone smoke test demonstrated working `grid_phi` propagation; this was strictly a control-plumbing diagnostic, not a gate claim or convergence result.
 
-### Questions for Thomas
+Independent review caught two serious problems in the initial retained-basis analysis: a symmetric Sep-18 k180 checkpoint had accidentally been reused as an asymmetric N=51 reference, and noncontiguous shell-state overlap embedding was incorrect. The resulting numerical conclusions were withdrawn. State tracking was corrected so retained indices are embedded at their actual Stage-1 ranks and overlap assignments consistently reorder states, energies, transitions, tensors, and `grid_phi`.
 
-- None for this block.
+Generated a fresh trustworthy asymmetric N=51 k180 oracle with `eps_J=0.10`, `eps_LK=0.05`, `n1max=4`, `N2=N3=51`, `L2=11`, `L3=14`, `N4=8`, Stage-1 `k=180`, `sigma=-24`, `which=LM`, `tol=1e-8`, and `MMD_AT_PLUS_A`. Its Stage-1 dimension is `23,409`, matrix nnz is `599,625`, LU nnz is `28,667,572`, fill ratio is `47.809x`, factorization time is `66.346 s`, ARPACK time is `170.118 s`, and the solve used `736` inverse solves. The maximum eigenpair residual is `5.433e-12`, median residual is `8.512e-13`, and orthogonality residual is `3.247e-12`.
 
+The inherited symmetric shell-informed k170 basis failed for the asymmetric model, with about `109.9 MHz` maximum transition error, about `13.22%` error on the important `7->8` `grid_phi` edge, and material leakage-coupling errors. An asymmetry-specific shell audit identified Stage-1 state 170 as the dominant omitted contribution: removing it caused about `105.369 MHz` transition error and up to `0.144713` absolute primary-path matrix-element error. The selected asymmetric basis is `0..159 + {162,163,165,167,168,170,171,172,176,177}`. Against full asymmetric k180 at N=51, it gives `3.055 MHz` maximum transition error, `0.999938` minimum tracked overlap, `0.005236` absolute / `0.452%` maximum primary-path `grid_phi` error, and `0.009153` absolute / `2.13%` maximum audited logical/leakage `grid_phi` error. The leading pathway remains `0 -> 7 -> 8 -> 1`, with full-k180 primary edges `0->7 = 1.911695`, `7->8 = 1.157822`, and `8->1 = 1.815039`. This k170 basis is controlled for the next N=71 spatial-convergence calculation; spatial convergence itself is not established.
 
-## Work Block — 2026-09-26
+Solver/resource work confirmed `MMD_AT_PLUS_A` as the best tested SuperLU ordering. A local N=71 k180 solve was not practical on the current machine, and N=101 was rejected by resource preflight. Created and independently reviewed a portable external N=71 runner with explicit `--dry-run`/`--execute` modes, frozen physical/numerical settings, cryptographic pinning of the verified N=51 oracle, atomic incomplete/complete checkpoints, output hashing and checkpoint authentication, same-solve k170/k172/k175 analysis, overlap-based N=51-to-N=71 tracking, near-degenerate-subspace tracking, assignment-confidence diagnostics, SVD/principal-angle diagnostics, basis-invariant `grid_phi` subspace metrics, and `resolved`/`ambiguous`/`deferred` pathway claim gating. The runner is `READY FOR EXTERNAL N=71`. The final reviewed checkpoint is commit `f9fdd829d780d9d88f9919af4f2b3891e5bc5782` (`Validate asymmetric four-mode grid_phi workflow`) and is pushed to `upstream/four-mode-asym-gridium-tests`.
 
-Completed: Generalized the multitone workflow to use `IdealGridium.phi()` or
-`Gridium4Mode.grid_phi()` as the model's abstract global phase-control
-operator and verified bounded four-mode three-tone propagation. An initial
-retained-basis/spatial analysis accidentally reused a symmetric checkpoint;
-Sol review found that provenance mismatch and a noncontiguous state-tracking
-bug, so those convergence and pathway-change claims were withdrawn.
-
-A fresh asymmetric N=51 k180 reference was generated and validated with
-maximum eigenpair residual `5.43e-12`. The inherited symmetric shell failed.
-The asymmetric shell ranking identified Stage-1 state 170 as dominant and
-selected `0..159 + {162,163,165,167,168,170,171,172,176,177}`. Against full
-k180, this k170 basis gives `3.055 MHz` maximum transition error, `0.999938`
-minimum overlap, `0.452%` maximum primary-path `grid_phi` error, and `2.13%`
-maximum audited logical/leakage error. The leading path remains `0-7-8-1`.
-
-Conclusion: the retained basis is controlled for the next spatial check, but
-spatial convergence is not established. Run N=71 only on a higher-memory
-machine and do not begin four-mode X90/X180 optimization yet.
-
-Next: Perform one N=71 spatial-convergence calculation with the selected
-asymmetric k170 basis after resource review.
+Next: Run the frozen asymmetric N=71 k180 reference on a higher-memory machine using commit `f9fdd82` and the reviewed runner; compare N=51 to N=71 with overlap/subspace tracking, validate the asymmetry-specific k170 basis at N=71, and only after spatial convergence is understood consider beginning four-mode X90/X180 optimization.
 
 ### Questions for Thomas
 
-- None for this block.
+- Does the asymmetry-specific k170 basis and full-k180-reference strategy look reasonable for the N=71 spatial-convergence check?
+- Is there a preferred higher-memory machine or cluster available for the N=71 run, or should we use any suitable 16+ GiB system?
