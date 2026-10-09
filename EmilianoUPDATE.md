@@ -229,3 +229,156 @@ python -m Simulations.Rabi_3Photon.run_four_mode_spatial71_reference \
   --output-root research/checkpoints \
   --n51-checkpoint research/checkpoints/2026-09-26-asymmetric-n51 \
   2>&1 | tee lawrencium-k220.log
+```
+
+
+## Work Block — 2026-09-29
+
+My Credits reset tommorow so I decided to do some investigated work
+
+Completed: While waiting for the Lawrencium `k=220` run, I used the existing authenticated N51/N71 checkpoints for several sandbox-only robustness studies. States 7 and 8 are numerically well contained within the current charge, spatial, and mode-4 cutoffs, but they are substantially more multimode and spatially extended than the logical states, and their small splitting is comparatively sensitive. The original `0 -> 7 -> 8 -> 1` route remains the clear coupling-product winner, but two useful robustness comparators emerged: `0 -> 7 -> 2 -> 1` (~12x weaker, avoids state 8 and the near `f78/f01` collision) and `0 -> 3 -> 8 -> 1` (~15x weaker, very stable from N51 to N71 and also avoids the middle-tone collision).
+
+The most important model-completeness concern is now an omitted distributed superinductor-array mode. The paper reports plausible array modes in roughly the 4.8–6.5 GHz range, overlapping states 7/8 near 6.3 GHz. The current mode-4 coordinate is a distinct ~15.8 GHz endpoint/node mode and does not represent this internal array excitation. A predictive five-mode model therefore should not be built by guessing an oscillator coupling; we need the physical array identity and either device-specific ladder parameters or an extracted mode eigenvector/participation.
+
+I also preregistered strict/practical criteria for the pending `k=180/200/220` comparison and built a sandbox postprocessor so the convergence decision is fixed before seeing the result. The k220 test will establish retained-basis stability only at fixed N71 in the present four-mode model; it will not establish spatial convergence or robustness to the omitted array mode.
+
+Next: Wait for the authenticated N71 `k=220` Lawrencium result and evaluate all three candidate pathways against the preregistered criteria. If retained-basis stability is confirmed, move to spatial/domain convergence and then model/parasitic sensitivity before returning to four-mode gate optimization.
+
+### Questions for Thomas
+
+- Do you know which physical superinductor array produces the reported low-frequency array mode?
+- Is there an EM/black-box extraction, normalized mode eigenvector/participation, or device-specific ladder data available for that mode?
+
+
+## Work Block — 2026-09-30–2026-10-09
+
+### Research objective and present decision
+
+The central objective remains to develop and validate physically meaningful, high-fidelity logical X90/X180 control in the asymmetric superconducting four-mode Gridium model. The work in this block did not optimize or validate a gate. It tested whether the finite Stage-1 retained basis is trustworthy enough for that control problem, investigated why ordinary energy-prefix truncation fails, and tested a physics-informed alternative at an independently chosen Hamiltonian parameter point.
+
+The current frozen decisions are:
+
+| Question | Decision |
+| --- | --- |
+| Retained-basis convergence | **FAIL** |
+| Frozen selector validation at `epsilon_J=0.11` | **BORDERLINE** |
+| Multi-target transfer to `epsilon_J=0.11` | **PARTIAL** |
+| Cross-parameter shell mechanism | **SUPPORTED** |
+| Four-mode X90/X180 gate work | **HOLD** |
+| Spatial convergence | **HOLD** |
+
+These decisions refer to different questions and must not be conflated. Accurate state tracking does not by itself establish accurate operators or transition frequencies; accurate physics-selected subspaces do not make the ordinary energy prefix converged; retained-basis convergence does not establish spatial or physical-model convergence; and none of the static results below validates a physical device or a time-domain gate.
+
+### Retained-basis progression at `epsilon_J=0.10`
+
+The authenticated N71 sequence used one four-mode model and nested Stage-1 energy prefixes through `k=300`. The resulting transition frequencies are:
+
+| k | f01 | f07 | f08 | f78 | f81 | f72 | f21 | f03 | f38 |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 180 | 15.857270 | 6275.014071 | 6297.747508 | 22.733437 | 6281.890238 | 2819.000502 | 3440.156299 | 3688.042355 | 2609.705153 |
+| 200 | 15.924131 | 6273.719453 | 6294.568288 | 20.848834 | 6278.644156 | 2819.203767 | 3438.591555 | 3685.779303 | 2608.788985 |
+| 220 | 15.908195 | 6272.819042 | 6292.853928 | 20.034886 | 6276.945733 | 2822.096724 | 3434.814124 | 3681.799676 | 2611.054252 |
+| 240 | 15.864131 | 6246.176785 | 6261.563920 | 15.387135 | 6245.699789 | 2796.971743 | 3433.340911 | 3679.790146 | 2581.773775 |
+| 260 | 15.855811 | 6243.253114 | 6257.821644 | 14.568530 | 6241.965833 | 2794.963818 | 3432.433485 | 3678.193165 | 2579.628479 |
+| 280 | 15.862073 | 6243.055864 | 6256.688434 | 13.632570 | 6240.826361 | 2795.614153 | 3431.579637 | 3677.182032 | 2579.506402 |
+| 300 | 15.831920 | 6190.483521 | 6206.337088 | 15.853567 | 6190.505168 | 2741.842182 | 3432.809419 | 3677.999330 | 2528.337758 |
+
+All values are MHz. The original N71 `k=180` endpoint was therefore not a convergence certificate. The `k220 -> k240` step changed `f07`, `f08`, and `f78` by `-26.642257`, `-31.290008`, and `-4.647750 MHz`. After smaller `k240 -> k260` and `k260 -> k280` changes, the `k280 -> k300` step changed them by `-52.572343`, `-50.351346`, and `+2.220997 MHz`. Several carriers reversed direction, and the final shell was larger than the preceding shell for the important outer transitions. The progression is nonmonotonic and the final increment is not a small tail.
+
+State identity and the dominant `0 -> 7 -> 8 -> 1` pathway remained trackable through these changes. That is useful but narrower evidence: overlaps answer whether the same state is being followed, whereas frequency differences test its energy, `grid_phi` comparisons test the control operator, and the retained-basis verdict asks whether all frozen observables stabilize together. At `k280 -> k300`, states 7/8 remained identifiable, yet their overlaps were only `0.998963/0.997201`, `g78` and the internal `{7,8}` operator block changed by `6.108%`, and the primary pathway score changed by `6.409%`. The authenticated conclusion is therefore **RETAINED-BASIS CONVERGENCE: FAIL**. `k=300` is another finite endpoint, not ground truth.
+
+Traceable results: `research/checkpoints/four-mode-asymmetric-n71-k220/`, `research/checkpoints/four-mode-asymmetric-n71-k260/`, `research/checkpoints/four-mode-asymmetric-n71-k300/`, and `research/sandbox/k300_results/REPORT.md`.
+
+### Why the large shells matter: Schur/Feshbach attribution
+
+The saved parent eigensystems were sufficient to reconstruct the finite Stage-2 Hamiltonians and partition them into an included `P` space and a newly added `Q` shell. The energy-dependent Schur/Feshbach self-energy quantifies how virtual excursions into `Q` dress the low states. Exact reconstruction also separates the shell self-energy from relaxation of the dressed vector inside `P`; the two are both needed to reproduce the observed finite-shell energy shift.
+
+For `epsilon_J=0.10`, ranks 292 and 290 account for approximately `86.75%` of the aggregate absolute `k280 -> k300` rank-attribution weight. Rank 287 is the smaller third contributor. For `epsilon_J=0.11`, ranks 292 and 290 still dominate, carrying approximately `84.42%`, while rank 289 becomes third. Cross-parameter raw-grid overlap tracking authenticated the relevant shell identities. Rank 289's group-78 coupling grows by approximately `20.86%` (`0.462470 -> 0.558934 GHz`) while its denominator changes only from `37.678725` to `37.690897 GHz`; this is a coupling redistribution, not a new resonance.
+
+The mechanism is a concentrated, off-resonant virtual shell. At both parameter points the important denominators remain tens of GHz and the frozen near-resonant fraction is zero. Large effects arise from strong coherent coupling of a few ranks to the dressed target subspace, especially states 7/8, not from a near-resonant avoided crossing.
+
+The exact analysis also explains why a fixed-vector second-order estimate is informative but not authoritative. At `epsilon_J=0.10`, states 7/8 receive exact shell self-energies of about `-67.17/-63.59 MHz`, partly offset by `+12.30/+10.94 MHz` of `P`-space relaxation. Ranks 292 and 290 interact nonadditively: their joint exact addback is not the sum of their singleton addbacks. At `epsilon_J=0.11`, the fixed-vector second-order estimate even gives the wrong sign for the small differential `f78` shell shift because it subtracts two much larger, nearly common-mode state corrections. This does not invalidate controlled second-order diagnostics for individual states; it shows why energy dependence, `P` relaxation, and rank interactions matter for cancellation-sensitive transitions.
+
+The frozen conclusion **CROSS-PARAMETER SHELL MECHANISM: SUPPORTED** means that the same broad class-B mechanism—a few strongly coupled, off-resonant virtual Stage-1 ranks—survives the `epsilon_J=0.10 -> 0.11` change, with quantitative redistribution among subleading ranks. It does not establish a converged infinite retained basis, spatial convergence, completeness of the four-mode circuit model, or device-level validity.
+
+Traceable analyses: `research/sandbox/k260_shell_attribution/REPORT.md`, `research/sandbox/k260_rank_addback/REPORT.md`, `research/sandbox/k300_shell_attribution/REPORT.md`, and `research/sandbox/epsj011_shell_attribution/REPORT.md`.
+
+### Physics-informed retained-basis selection
+
+The attribution results exposed the failure mode of a pure energy prefix: a small number of high-rank, off-resonant states can have large virtual influence even when their Stage-1 energies are not especially low. An initial same-parent rank-addback test at `k=260` selected ranks `{223,225,230}` and recovered roughly `85%` of the important state-7/8 and outer-carrier `k220 -> k240` reorganization with three ranks; equal-cost prefix and spread controls recovered very little. That experiment was promising but explicitly non-universal—it transferred to logical states 0/1 but not comparator states 2/3—and did not establish convergence.
+
+The subsequent frozen selector therefore treats three target pairs equally: `(0,1)`, `(2,3)`, and `(7,8)`. For each candidate rank and pair it constructs the allowed isolated-shell Schur-response matrix from the candidate coupling block and its energy denominator. Each target group's aggregate response is used to whiten its features, preventing a numerically large group from dominating. A deterministic greedy log-determinant coverage objective then selects ranks that add complementary response directions across all three groups. `grid_phi` is reserved for validation and has zero selection weight. The exact implementation, weights, floors, tie handling, and budgets `3/6/10/15` were frozen before selected-space outcomes were inspected.
+
+The selector identified the actual high-impact ranks:
+
+| Parameter point | S2 exact shell-weight capture at budgets 3 / 6 / 10 / 15 |
+| --- | --- |
+| `epsilon_J=0.10` | `90.50% / 98.70% / 99.46% / 99.77%` |
+| `epsilon_J=0.11` | `88.329% / 98.337% / 99.507% / 99.776%` |
+
+The same frozen selector formula was reused at `epsilon_J=0.11` without refitting its weights, targets, or selection rules. This is strong evidence that coupling/denominator-aware selection captures influential virtual directions more efficiently than ordinary prefix truncation within the tested model. It is a model-reduction result, not a substitute for demonstrating convergence of the full energy-prefix calculation.
+
+### Independent `epsilon_J=0.11` validation
+
+The held-out point changed only `epsilon_J` from `0.10` to `0.11`; `epsilon_LK=0.05` and all other physical and numerical settings remained fixed. Its single guarded N71 `k=300` Stage-1 solve completed, atomically published, and authenticated. The checkpoint has configuration SHA-256 `8ed1b0c72746a2594e9139d4cc782a86007a3b416394eeab71da071dc8364646`, checkpoint SHA-256 `20a58be10ad8408ce479de259e1d2f3562cc46222e0eebc939d6d695803516bd`, maximum eigenpair residual `3.0423e-12`, and orthogonality residual `2.1585e-11`.
+
+Applied independently at the new point, all 66 mandatory physics-selected components passed their strict accuracy thresholds. All three target groups improved strongly relative to equal-cost energy-prefix and control selections; state and subspace tracking passed; `grid_phi` operator and pathway errors remained small; no physics-selector cancellation flags appeared at budgets 10 or 15; and `0 -> 7 -> 8 -> 1` remained the rank-1 static pathway. These are encouraging transfer results.
+
+The frozen classifications nevertheless remain exactly:
+
+- **SELECTOR VALIDATION: BORDERLINE** because the union/budget-10 `f78` no-harm clause was missed.
+- **MULTI-TARGET TRANSFER: PARTIAL** because the frozen strong condition requires more than broad improvement when the selector verdict itself is BORDERLINE.
+- **CROSS-PARAMETER SHELL MECHANISM: SUPPORTED** because the independently tracked shell retains the same concentrated off-resonant mechanism.
+- **RETAINED-BASIS CONVERGENCE: FAIL** because the ordinary `k280 -> k300` prefix still contains large carrier, energy, and operator changes, reversals, and nonshrinking increments.
+
+The authenticated checkpoint is `research/checkpoints/four-mode-asymmetric-n71-epsj011-k300/`; frozen classifications are in `research/sandbox/parameter_point_validation/evaluation.json` and authentication in `research/sandbox/parameter_point_validation/authentication.json`.
+
+### The `f78` cancellation exception
+
+At `epsilon_J=0.11`, the union/budget-10 physics selection has `f78` error `+0.220384 MHz`, while the ordinary global prefix has the apparently better error `-0.140580 MHz`. The prefix result is misleading in isolation: its raw state-7 and state-8 errors are `+54.479177` and `+54.338596 MHz`, whose near-common-mode cancellation leaves the small transition error. The physics selection's corresponding state errors are only `+0.254622` and `+0.475006 MHz`.
+
+Thus the prefix does not recover either state well; it obtains a favorable difference between two errors roughly two orders of magnitude larger. A good transition-frequency match alone is not sufficient evidence of reliable state-energy or subspace recovery. The preregistered no-harm rule intentionally did not permit this explanation to erase the miss after seeing the result, so the official selector verdict remains **BORDERLINE**.
+
+### Static selectivity and implications for control
+
+At the finite `k=300` endpoints, the middle/logical detuning changes materially:
+
+| Parameter point | `f78-f01` |
+| --- | ---: |
+| `epsilon_J=0.10` | `+0.021648 MHz` |
+| `epsilon_J=0.11` | `+1.260224 MHz` |
+
+This demonstrates strong parameter sensitivity in a control-relevant spectral separation. The near-collision at `epsilon_J=0.10`, together with nonzero `grid_phi` couplings, is a warning for future frequency-selective pulse design and potential logical/middle-transition crosstalk. The movement at `epsilon_J=0.11` shows that the collision is not fixed across this parameter perturbation. These are static observations from unconverged finite retained bases: they do not establish an experimental addressability window, microwave-port response, or time-domain gate fidelity.
+
+### Sealed `epsilon_J=0.11`, `k=340` experiment
+
+The next retained-basis experiment is fully preregistered and has passed its separate October 9 prelaunch review. It is intentionally not authorized or executed by this documentation update.
+
+| Item | Frozen value or status |
+| --- | --- |
+| Physical point | `epsilon_J=0.11`, `epsilon_LK=0.05` |
+| Spatial/basis settings | `N2=N3=71`, `L2=11`, `L3=14`, `N4=8`, `n1max=4` |
+| Stage-1 parent | `k=340`; `sigma=-24`, `which=LM`, `tol=1e-8`, `MMD_AT_PLUS_A` |
+| Nested prefixes | `260, 280, 300, 320, 340` |
+| New shells | ranks `300–319` and `320–339` |
+| Configuration fingerprint | `10997084ff05005d20219d8d7110fe8751a10ee64a410a031f81e6ec479829a0` |
+| Frozen criteria SHA-256 | `ffdbe09ae353c0eb6746a95c67b7c6dd1461db1a6c3e2d1260b61f831c0e4c72` |
+| Preregistration manifest SHA-256 | `dd26b9b819e53859a807ef99aab7d96e57a2a7cda6b6862187846518b7924d52` |
+| Preregistration | **READY** |
+| Prelaunch safety | **PASS** |
+| Execution | **NOT AUTHORIZED** |
+| Post-solve authentication | **NOT RUN** |
+| k340 convergence | **NOT EVALUATED** |
+| k340 shell diagnosis | **NOT AVAILABLE** |
+
+All 15 prelaunch gates passed. The three frozen hashes matched; historical checkpoints authenticated; the dedicated Python `3.12.11` environment was valid; no competing k340 solver, final or incomplete checkpoint, execution lock, or conflicting output/log existed; memory pressure was healthy with approximately `33–36%` free memory; pages throttled remained `0`; atomic publication and output isolation were confirmed; all 8 cheap tests passed; and the sealed no-solve dry preflight passed. The guarded launcher requires separate explicit execution authorization. That authorization was not supplied during the review.
+
+Consequently, no k340 Stage-1 eigensolve has been launched, no k340 spectrum exists, and no k340 convergence or shell-mechanism result exists. The scientific purpose of the sealed run is to distinguish an isolated influential `k280 -> k300` shell from continuing high-impact contributions above rank 300. Frozen comparisons require `k300 -> k320`, `k320 -> k340`, and `k300 -> k340`; a small final increment cannot erase a large earlier failure. Even a favorable result would support only a plateau within the tested fixed-N71 range, not convergence beyond k340 or ground-truth status for k340.
+
+The sealed materials are in `research/sandbox/epsj011_k340_preregistration/`, especially `REPORT.md`, `execution_plan.md`, `criteria.json`, and `preregistration_seal.json`.
+
+### Current limitations and next action
+
+No validated high-fidelity four-mode X90/X180 gate has yet been demonstrated. Remaining limitations include unresolved virtual contributions above the current endpoint; failed retained-basis convergence; unresolved spatial/discretization convergence; finite four-mode model scope and the possible omitted distributed array modes; no validated mapping from `grid_phi` to a physical microwave port; and no converged time-domain logical-gate demonstration. These limitations prevent a present validation claim; they do not prove that a physical Gridium gate is impossible.
+
+Next: (1) obtain explicit authorization for the already sealed k340 calculation; (2) run the existing guarded k340 parent exactly once, subject to its renewed safety gates; (3) authenticate the published output; (4) apply only the frozen convergence analysis; and (5) choose the following experiment from the observed shell behavior. Preserve the existing research-figure backlog. Until those steps are complete, **GATE WORK: HOLD** and **SPATIAL CONVERGENCE: HOLD**.
