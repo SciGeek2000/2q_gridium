@@ -26,6 +26,10 @@ Simulations/Rabi_3Photon/*
 
 # Local prompt/research infrastructure
 docs/
+!docs/
+docs/*
+!docs/gridium-research-update-2026-10/
+!docs/gridium-research-update-2026-10/**
 research/
 
 # Local research references
