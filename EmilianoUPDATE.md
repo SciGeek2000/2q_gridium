@@ -250,7 +250,7 @@ Next: Wait for the authenticated N71 `k=220` Lawrencium result and evaluate all 
 - Is there an EM/black-box extraction, normalized mode eigenvector/participation, or device-specific ladder data available for that mode?
 
 
-## Work Block — 2026-09-30–2026-10-11
+## Work Block — 2026-09-30–2026-10-09
 
 ### Research objective and present decision
 
@@ -350,63 +350,35 @@ At the finite `k=300` endpoints, the middle/logical detuning changes materially:
 
 This demonstrates strong parameter sensitivity in a control-relevant spectral separation. The near-collision at `epsilon_J=0.10`, together with nonzero `grid_phi` couplings, is a warning for future frequency-selective pulse design and potential logical/middle-transition crosstalk. The movement at `epsilon_J=0.11` shows that the collision is not fixed across this parameter perturbation. These are static observations from unconverged finite retained bases: they do not establish an experimental addressability window, microwave-port response, or time-domain gate fidelity.
 
-### Completed authenticated `epsilon_J=0.11`, `k=340` experiment
+### Sealed `epsilon_J=0.11`, `k=340` experiment
 
-The sealed N71 `k=340` experiment subsequently ran exactly once through its guarded launcher, published atomically, authenticated, and passed the frozen evaluator. Its authenticated checkpoint is `research/checkpoints/four-mode-asymmetric-n71-epsj011-k340/`. The configuration fingerprint remained `10997084ff05005d20219d8d7110fe8751a10ee64a410a031f81e6ec479829a0`; the published checkpoint SHA-256 is `a6f30847458108adee7a6776463d39a033672b2d3476af739e59bede91b80d13`.
+The next retained-basis experiment is fully preregistered and has passed its separate October 9 prelaunch review. It is intentionally not authorized or executed by this documentation update.
 
-| Item | Authenticated result |
+| Item | Frozen value or status |
 | --- | --- |
-| Execution | **SUCCESS** |
-| Authentication | **PASS** |
-| Frozen evaluator | **PASS** |
-| Retained-basis convergence | **FAIL** |
-| Shell behavior | **D — NONMONOTONIC UNRESOLVED** |
-| Gate work | **HOLD** |
-| Spatial convergence | **HOLD** |
+| Physical point | `epsilon_J=0.11`, `epsilon_LK=0.05` |
+| Spatial/basis settings | `N2=N3=71`, `L2=11`, `L3=14`, `N4=8`, `n1max=4` |
+| Stage-1 parent | `k=340`; `sigma=-24`, `which=LM`, `tol=1e-8`, `MMD_AT_PLUS_A` |
+| Nested prefixes | `260, 280, 300, 320, 340` |
+| New shells | ranks `300–319` and `320–339` |
+| Configuration fingerprint | `10997084ff05005d20219d8d7110fe8751a10ee64a410a031f81e6ec479829a0` |
+| Frozen criteria SHA-256 | `ffdbe09ae353c0eb6746a95c67b7c6dd1461db1a6c3e2d1260b61f831c0e4c72` |
+| Preregistration manifest SHA-256 | `dd26b9b819e53859a807ef99aab7d96e57a2a7cda6b6862187846518b7924d52` |
+| Preregistration | **READY** |
+| Prelaunch safety | **PASS** |
+| Execution | **NOT AUTHORIZED** |
+| Post-solve authentication | **NOT RUN** |
+| k340 convergence | **NOT EVALUATED** |
+| k340 shell diagnosis | **NOT AVAILABLE** |
 
-The 45,369-dimensional solve used a matrix with 1,176,865 nonzeros and an LU factorization with 80,262,014 nonzeros. Internal runtime was `436.896 s`, including `67.855 s` for factorization and `318.740 s` for `eigsh` across 1,367 inverse solves. The maximum eigenpair residual was `3.7515e-12`, the median residual was `2.1578e-12`, and the infinity-norm orthogonality residual was `9.7942e-12`. These values establish numerical quality for this finite solve; they do not make `k=340` ground truth.
+All 15 prelaunch gates passed. The three frozen hashes matched; historical checkpoints authenticated; the dedicated Python `3.12.11` environment was valid; no competing k340 solver, final or incomplete checkpoint, execution locke, or conflicting output/log existed; memory pressure was healthy with approximately `33–36%` free memory; pages throttled remained `0`; atomic publication and output isolation were confirmed; all 8 cheap tests passed; and the sealed no-solve dry preflight passed. The guarded launcher requires separate explicit execution authorization. That authorization was not supplied during the review.
 
-#### Spectral result and frozen convergence decision
+Consequently, no k340 Stage-1 eigensolve has been launched, no k340 spectrum exists, and no k340 convergence or shell-mechanism result exists. The scientific purpose of the sealed run is to distinguish an isolated influential `k280 -> k300` shell from continuing high-impact contributions above rank 300. Frozen comparisons require `k300 -> k320`, `k320 -> k340`, and `k300 -> k340`; a small final increment cannot erase a large earlier failure. Even a favorable result would support only a plateau within the tested fixed-N71 range, not convergence beyond k340 or ground-truth status for k340.
 
-The most control-relevant frequencies evolved as follows; all values are MHz and each column is a nested prefix of the single authenticated `k=340` parent:
-
-| k | f01 | f07 | f08 | f78 | f81 | f78-f01 |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 300 | 16.005438 | 6184.731826 | 6201.997487 | 17.265661 | 6185.992050 | +1.260224 |
-| 320 | 16.004623 | 6184.297658 | 6201.282916 | 16.985258 | 6185.278292 | +0.980635 |
-| 340 | 16.035221 | 6183.264956 | 6200.013677 | 16.748721 | 6183.978457 | +0.713500 |
-
-The maximum absolute mandatory-carrier changes were `0.714572 MHz` for `k300 -> k320`, `1.299836 MHz` for `k320 -> k340`, and `2.013593 MHz` for `k300 -> k340`. All practical component comparisons passed. Thirteen strict component comparisons were **BORDERLINE**, with no component-level strict **FAIL**. That component-wise result does not certify a shrinking tail: 61 frozen trend checks did not shrink, the final increment grew for 7 of the 9 mandatory carriers, `f01` reversed sign, and cancellation affected `f78`. Passing fixed practical tolerances at finite endpoints is compatible with a nonmonotonic sequence whose newest shell is larger than the preceding one. The frozen overall classification therefore remains **RETAINED-BASIS CONVERGENCE: FAIL**.
-
-#### New-shell Schur/Feshbach mechanism
-
-| Shell | Stage-1 ranks | Aggregate absolute self-energy weight | Top-three fraction | Leading ranks |
-| --- | --- | ---: | ---: | --- |
-| S1 | `300–319` | `2.1422 MHz` | `57.3%` | 318, 316, 305 |
-| S2 | `320–339` | `4.0741 MHz` | `93.7%` | 328, 332, 338 |
-
-Rank 328 alone contributes approximately `79.5%` of the S2 aggregate absolute weight, and rank 332 is the second-largest contributor. The frozen diagnostic found no near-resonant contribution in either shell. This distinguishes several ideas that would otherwise be easy to conflate: the earlier `k280 -> k300` shell caused unusually large spectral reorganizations; the post-300 carrier corrections are smaller in absolute size; but the latest corrections do not form a genuinely shrinking tail, because the S2 self-energy weight exceeds S1 and most final carrier increments grow. S2 is a concentrated off-resonant virtual contribution, not a resonance. The official shell classification is therefore **D — NONMONOTONIC UNRESOLVED**.
-
-#### State, operator, pathway, and selector stability
-
-Tracked state identities remain stable: the minimum tracked target-state overlap for `k300 -> k340` is `0.999978080`. The primary `0 -> 7 -> 8 -> 1` pathway remains rank 1, and the frozen operator and pathway component comparisons pass their strict and practical criteria. The secondary physics-informed selector test also passes its frozen k340 checks. Operator structure can remain stable while energy differences remain incompletely converged: state identity and matrix-element stability answer different questions from whether successive retained-basis energy corrections shrink.
-
-This secondary k340 selector result does not revise the independent held-out parameter-point classifications established above. They remain **INDEPENDENT SELECTOR VALIDATION: BORDERLINE**, **MULTI-TARGET PARAMETER TRANSFER: PARTIAL**, and **CROSS-PARAMETER SHELL MECHANISM: SUPPORTED**.
-
-The finite-endpoint logical/middle separation, `f78-f01`, moves from `+1.260224 MHz` at k300 to `+0.980635 MHz` at k320 and `+0.713500 MHz` at k340. The motion toward zero is a numerical observation across these finite prefixes, not a converged physical detuning or a time-domain gate-fidelity result.
-
-Traceable results: `research/sandbox/epsj011_k340_preregistration/evaluation.json`, `research/sandbox/epsj011_k340_preregistration/k340_metrics.json`, and `research/checkpoints/four-mode-asymmetric-n71-epsj011-k340/`.
-
-### Authenticated scientific figure collection
-
-The completed visualization package uses saved authenticated data and contains 17 original scientific figures plus six reviewed presentation PDFs, with captions, source-data hashes, reproduction instructions, and quality-control records. The reviewed set is A2, B3, C2a, C2b, C3, and D1. Together they show nonmonotonic retained-basis corrections, cross-parameter Schur/Feshbach shell attribution, the advantage of physics-informed selection over equal-cost controls, the `f78` common-mode cancellation exception, and the unresolved k340 tail.
-
-The review package is available locally at `docs/gridium-research-update-2026-10/`. Its presence here is not a claim that it has been committed or pushed. Full provenance remains in `research/sandbox/gridium_figures_2026_10/`.
+The sealed materials are in `research/sandbox/epsj011_k340_preregistration/`, especially `REPORT.md`, `execution_plan.md`, `criteria.json`, and `preregistration_seal.json`.
 
 ### Current limitations and next action
 
-No validated high-fidelity four-mode X90/X180 gate has yet been demonstrated. Significant virtual contributions may persist above rank 340; retained-basis convergence has failed; spatial/discretization convergence is unresolved; the four-mode model may omit distributed array modes; `grid_phi` has not been validated as a physical microwave-port map; and no converged time-domain logical-gate demonstration exists. These limitations prevent a present validation claim; they do not prove that a physical Gridium gate is impossible.
+No validated high-fidelity four-mode X90/X180 gate has yet been demonstrated. Remaining limitations include unresolved virtual contributions above the current endpoint; failed retained-basis convergence; unresolved spatial/discretization convergence; finite four-mode model scope and the possible omitted distributed array modes; no validated mapping from `grid_phi` to a physical microwave port; and no converged time-domain logical-gate demonstration. These limitations prevent a present validation claim; they do not prove that a physical Gridium gate is impossible.
 
-The next proposed experiment is an `epsilon_J=0.11`, N71 `k=380` parent with potential nested endpoints `k340, k360, k380` and proposed new shells `340–359` and `360–379`. Its scientific objective would be to determine whether significant virtual-state contributions persist above rank 340. No sealed k380 preregistration artifacts currently exist, k380 has not been executed, and this documentation update supplies no execution authorization. The experiment must be separately preregistered and reviewed before any launch.
-
-Until retained-basis behavior is resolved, **GATE WORK: HOLD** and **SPATIAL CONVERGENCE: HOLD**.
+Next: (1) obtain explicit authorization for the already sealed k340 calculation; (2) run the existing guarded k340 parent exactly once, subject to its renewed safety gates; (3) authenticate the published output; (4) apply only the frozen convergence analysis; and (5) choose the following experiment from the observed shell behavior. Preserve the existing research-figure backlog. Until those steps are complete, **GATE WORK: HOLD** and **SPATIAL CONVERGENCE: HOLD**.
