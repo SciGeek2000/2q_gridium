@@ -1,5 +1,9 @@
 # Gridium retained-basis research update — October 2026
 
+**Latest: [October 20 Research Work Block](WORK_BLOCK_2026-10-20.md)** —
+authenticated k380 findings and the sealed, unexecuted restricted Schur v2 study.
+The existing figures and sections below document the earlier work through k340.
+
 This package summarizes the completed N71 retained-basis investigation for
 the asymmetric four-mode Gridium model. It is intended as a compact scientific
 review for Thomas Ersevim; the six reviewed figures are linked from

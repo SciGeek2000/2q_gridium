@@ -382,3 +382,22 @@ The sealed materials are in `research/sandbox/epsj011_k340_preregistration/`, es
 No validated high-fidelity four-mode X90/X180 gate has yet been demonstrated. Remaining limitations include unresolved virtual contributions above the current endpoint; failed retained-basis convergence; unresolved spatial/discretization convergence; finite four-mode model scope and the possible omitted distributed array modes; no validated mapping from `grid_phi` to a physical microwave port; and no converged time-domain logical-gate demonstration. These limitations prevent a present validation claim; they do not prove that a physical Gridium gate is impossible.
 
 Next: (1) obtain explicit authorization for the already sealed k340 calculation; (2) run the existing guarded k340 parent exactly once, subject to its renewed safety gates; (3) authenticate the published output; (4) apply only the frozen convergence analysis; and (5) choose the following experiment from the observed shell behavior. Preserve the existing research-figure backlog. Until those steps are complete, **GATE WORK: HOLD** and **SPATIAL CONVERGENCE: HOLD**.
+
+
+## Work Block — 2026-10-10–2026-10-20
+
+Completed: Consolidated the authenticated k340 results and completed the separately authorized k380 experiment on October 18. The k340 checkpoint completed on October 9; its earlier pre-execution description above remains a historical snapshot. Both experiments completed successfully and authenticated, but their frozen retained-basis verdict is **FAIL**, with shell classification **D_NONMONOTONIC_UNRESOLVED**. The k380 parent's maximum mandatory-carrier corrections across k300→320, k320→340, k340→360 and k360→380 are **0.714572, 1.299836, 5.594546 and 6.738198 MHz**. The final maximum grows, five of nine final carrier corrections increase, and cumulative k340→380 has seven practical component failures. Ranks354 and362 dominate the two new off-resonant shells, continuing the concentrated virtual-response pattern previously seen at rank328. Target tracking, grid_phi structure and the rank-1 static 0→7→8→1 pathway remain comparatively stable; they do not establish spectral convergence.
+
+Scientific conclusion: Retained-basis convergence has **not been established**; the official verdict remains FAIL. Finite-prefix f78−f01 changes sign, and severe cancellation can hide large state-excitation changes. The independent selector verdict remains **BORDERLINE**, multi-target transfer **PARTIAL**, and the k380 secondary selector **PASS**. These are separate findings. No validated high-fidelity asymmetric four-mode gate, calibrated physical microwave-port mapping or spatial-convergence result is claimed.
+
+Current status: Benchmark v1 remains sealed with complete execution **BLOCKED** by the missing independent historical selector-S2 endpoint. Replay would not recover historical independence. A separate restricted Schur-only v2 benchmark on S340/S360/U340 is now **READY, SEALED and AUTHENTICATED**, with implementation complete, **68 synthetic tests passing**, **110 source pins** and **31 manifest-pinned files**. It compares scalar, diagonal, full eleven-state matrix and energy-dependent eleven-state approximations. Actual-parent validation and benchmark execution are **NOT RUN**; numerical execution is not authorized. Final v2 prelaunch review is **ON HOLD at user request**.
+
+The standalone [October 20 Research Work Block](docs/gridium-research-update-2026-10/WORK_BLOCK_2026-10-20.md) gives the numerical tables, interpretation, evidence locations and links to the six existing reviewed PDFs. Those figures cover earlier work through k340 and do not plot the new k380 result.
+
+Next: Await Thomas's input. Conduct a separate prelaunch review only after user authorization, and seek separate numerical-execution authorization afterward. No new Stage-1 parent is required for the proposed restricted study. **GATE WORK: HOLD. SPATIAL CONVERGENCE: HOLD.**
+
+### Questions for Thomas
+
+- Does the restricted finite-parent Schur comparison look like the most useful diagnostic before another contiguous-k expansion?
+- Which circuit-theory or Hamiltonian-reduction checks would help interpret the recurring concentrated off-resonant contributions, including sensitivity to missing parasitics or distributed modes?
+- Given the agreed abstract grid_phi coordinate, what device-level or calibration evidence should anchor the eventual physical microwave-port mapping before control claims?
