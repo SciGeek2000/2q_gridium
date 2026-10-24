@@ -1,6 +1,8 @@
 # Gridium retained-basis research update — October 2026
 
-**Latest: [October 20 Research Work Block](WORK_BLOCK_2026-10-20.md)** —
+**Latest: [October 24 illustrated research update](work-blocks-1-5/README.md)** — Work Blocks 1–5, spectral accuracy and eight scientific figures.
+
+**Previous: [October 20 Research Work Block](WORK_BLOCK_2026-10-20.md)** —
 authenticated k380 findings and the sealed, unexecuted restricted Schur v2 study.
 The existing figures and sections below document the earlier work through k340.
 
