@@ -643,6 +643,10 @@ Completed: Developed and reviewed inactive k420 native A/B/C integration candida
 
 Next: Find authorized compute resources, establish an appropriate numerical environment and explicitly justified execution trust assumptions, and verify monitoring, admission and provenance before requesting separate authorization to resume the frozen k380 → k400 → k420 convergence experiment. Follow up on Thomas's previously reported Lawrencium access; no current external account/allocation for this k420 run has been verified.
 
+![Previously computed maximum absolute changes among nine dressed carrier frequencies across four same-parent retained-prefix increments](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/fig01_retained_basis_convergence.png)
+
+*Figure 1. Prior authenticated k380 results: the largest absolute change among nine registered dressed carrier frequencies rises across the tested nested-prefix increments. All prefixes use the same k380 Stage-1 parent at ε_J=0.11 and fixed N71. Convergence remains unestablished; no k400/k420 values are plotted.* [Source validation](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/FIGURE_VALIDATION.md#figure-1).
+
 ## Stoppage Update 02 — 2026-10-29
 
 The genuine k420 convergence experiment has not started. Its purpose remains to evaluate k380 → k400 → k420 using one new k420 Stage-1 parent and the frozen ten-case Stage-2 workload, followed by actual scientific convergence evaluation. Existing retained-basis convergence remains unresolved; the authenticated k380 finite-parent results do not establish a converged spectrum.
@@ -653,6 +657,14 @@ Route A was designed around immutable authenticated evidence, coordinated STOP/a
 
 The local 18-GiB Mac also failed both admission snapshots. The first observed approximately 62 MiB physically free and a 7.34 GiB availability proxy. The quiet-session check observed 0.801575 GiB physically free and a 7.282257 GiB availability proxy. Frozen requirements remain at least 1 GiB physically free and 12 GiB availability proxy. Both checks failed; pressure percentages were not substituted for those quantities. Current local execution is impractical under the unchanged policy, without establishing that this hardware is universally incapable of the calculation.
 
+![Two panels comparing October 29 availability-proxy and physically free memory observations with the unchanged 12 GiB and 1 GiB admission minima](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/fig02_host_memory_admission.png)
+
+*Figure 2. October 29 observations on the Apple M3 Pro with 18 GiB unified memory. (a) Canonical availability proxy; (b) physically free memory. Both sessions fail both frozen gates. Pressure percentages are not substitutes, and these observations do not establish universal hardware incapacity.* [Source validation](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/FIGURE_VALIDATION.md#figure-2).
+
 There are no new k400/k420 numerical results, no new convergence claim and no new four-mode gate validation. Existing scientific results, checkpoints and failure provenance remain preserved. Engineering tests are not substitutes for scientific convergence evidence. Schur-v2 prelaunch, gate work and spatial convergence remain HOLD.
 
 Recovery now depends on identifying authorized external compute access, establishing the appropriate environment and explicitly justified trust assumptions, and verifying monitoring, admission and provenance. Thomas's earlier Lawrencium offer is a lead; external compute access for this experiment has not yet been verified. Separate authorization is required before real calculations. The next scientific result must come from performing the frozen k420 experiment and reporting its actual convergence behavior to Thomas.
+
+![Planned k420 scientific workflow with separate local-memory and protected-publication blockers feeding execution admission, followed by unexecuted Stages A, B and C](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/fig03_k420_execution_roadmap.png)
+
+*Figure 3. Planned scientific workflow. Local memory admission and the unavailable protected native boundary block progress; external compute access remains unverified. Real execution requires separate authorization. The final output must be a tested convergence verdict, not an assumed converged spectrum.* [Source validation](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/FIGURE_VALIDATION.md#figure-3).
