@@ -384,7 +384,7 @@ No validated high-fidelity four-mode X90/X180 gate has yet been demonstrated. Re
 Next: (1) obtain explicit authorization for the already sealed k340 calculation; (2) run the existing guarded k340 parent exactly once, subject to its renewed safety gates; (3) authenticate the published output; (4) apply only the frozen convergence analysis; and (5) choose the following experiment from the observed shell behavior. Preserve the existing research-figure backlog. Until those steps are complete, **GATE WORK: HOLD** and **SPATIAL CONVERGENCE: HOLD**.
 
 
-## Work Block — 2026-10-10–2026-10-20
+## Work Block — 2026-10-10 -> 2026-10-20
 
 Completed: Consolidated the authenticated k340 results and completed the separately authorized k380 experiment on October 18. The k340 checkpoint completed on October 9; its earlier pre-execution description above remains a historical snapshot. Both experiments completed successfully and authenticated, but their frozen retained-basis verdict is **FAIL**, with shell classification **D_NONMONOTONIC_UNRESOLVED**. The k380 parent's maximum mandatory-carrier corrections across k300→320, k320→340, k340→360 and k360→380 are **0.714572, 1.299836, 5.594546 and 6.738198 MHz**. The final maximum grows, five of nine final carrier corrections increase, and cumulative k340→380 has seven practical component failures. Ranks354 and362 dominate the two new off-resonant shells, continuing the concentrated virtual-response pattern previously seen at rank328. Target tracking, grid_phi structure and the rank-1 static 0→7→8→1 pathway remain comparatively stable; they do not establish spectral convergence.
 
@@ -401,3 +401,258 @@ Next: Await Thomas's input. Conduct a separate prelaunch review only after user 
 - Does the restricted finite-parent Schur comparison look like the most useful diagnostic before another contiguous-k expansion?
 - Which circuit-theory or Hamiltonian-reduction checks would help interpret the recurring concentrated off-resonant contributions, including sensitivity to missing parasitics or distributed modes?
 - Given the agreed abstract grid_phi coordinate, what device-level or calibration evidence should anchor the eventual physical microwave-port mapping before control claims?
+
+---
+
+## October 24, 2026 — Work Blocks 1–5 Research Update
+
+### Executive Summary
+
+Completed a systematic investigation of high-rank virtual-state contributions, physics-informed state selection, cross-shell attribution, and actual selected-space spectral accuracy in the asymmetric four-mode Gridium model.
+
+The central result is that noncontiguous, physically informed state retention can reproduce the finite-parent dressed spectrum much more accurately than ordinary energy-prefix retention at comparable selected-state budgets.
+
+However, simpler bare-coupling selectors remain competitive. The frozen scientific verdict is **MIXED_OR_NOT_IMPROVED**, not unconditional selector superiority.
+
+### 1. Retained-Basis Convergence: k380
+
+The authenticated k380 Stage-1 parent was used to investigate the retained-basis tail.
+
+The maximum mandatory-carrier changes were:
+
+| Shell | Maximum carrier correction (MHz) |
+|---|---:|
+| k300 -> k320 | 0.714572 |
+| k320 -> k340 | 1.299836 |
+| k340 -> k360 | 5.594546 |
+| k360 -> k380 | 6.738198 |
+
+The increasing corrections demonstrate unresolved, nonmonotonic spectral behavior.
+
+The relative f78-f01 transition changes sign across finite truncations. This is truncation dependence, not evidence for a physically established crossing.
+
+**Conclusion: RETAINED-BASIS CONVERGENCE FAIL.**
+
+The k380 model is an authenticated finite-parent numerical reference, not a converged infinite-basis result.
+
+### 2. High-Rank Virtual-State Mechanism
+
+High-rank states 328, 354, and 362 were identified as especially influential virtual contributors.
+
+State-fingerprint analysis found that their charge-edge and spatial-edge weights are relatively small. Their importance is therefore not explained simply by concentration at numerical cutoff boundaries.
+
+Coupling-versus-Schur analysis showed strong target-dependent behavior.
+
+Target-aware coupling tracks Schur attribution much more closely than aggregate bare coupling.
+
+This supports a physical interpretation involving unusually strong coupling to specific dressed target states, especially states 7 and 8.
+
+These observations are mechanistic evidence within the tested finite parent; they do not establish basis convergence or universal predictor performance.
+
+### 3. Work Block 3 — Cross-Shell Selection
+
+The frozen physics-informed selector was evaluated retrospectively against historical S1 attribution.
+
+| Selection budget | S1 attribution captured |
+|---|---:|
+| 3 | 87.150372% |
+| 6 | 98.058058% |
+| 10 | 99.326400% |
+| 15 | 99.946458% |
+
+Results indicated strong identification of influential S1 shell states.
+
+The study did not yet establish selected-space spectral accuracy or prospective cross-parent transfer.
+
+### 4. Work Block 4 — Base-Matched S2 Validation
+
+**Execution: SUCCESS — October 24, 2026.**
+
+Using:
+
+- P340 = Stage-1 ranks [0,340)
+- Q_S2 = Stage-1 ranks [360,380)
+- U_S2 = P340 union Q_S2
+
+The frozen selector was evaluated against base-matched S2 Schur attribution.
+
+| Budget | S1 capture | S2 capture |
+|---|---:|---:|
+| 3 | 87.150372% | 98.680013% |
+| 6 | 98.058058% | 99.289072% |
+| 10 | 99.326400% | 99.816194% |
+| 15 | 99.946458% | 99.912058% |
+
+The three dominant selected S2 ranks were:
+
+**362, 379, 375.**
+
+Together they captured 98.680013% of absolute S2 attribution.
+
+Total absolute S2 attribution was 12.607858748 MHz, with rank 362 dominating the distribution.
+
+The experiment completed two large Stage-2 eigensolves, one small Q decomposition, and six shifted linear solves.
+
+- Runtime: 24.959 seconds.
+- Peak sampled RSS: approximately 1.199 GiB.
+- Numerical validation: PASS.
+- Source and output authentication: PASS.
+- Preservation: PASS.
+
+**Conclusion:** The frozen selector successfully captures concentrated S2 virtual-state attribution, but bare-coupling and denominator controls are also competitive.
+
+### 5. Work Block 5 — Actual Selected-Space Spectral Accuracy
+
+**Execution: SUCCESS — October 24, 2026.**
+
+This was the first direct test of actual dressed-spectrum accuracy using the selected spaces.
+
+The experiment completed:
+
+- 19 unique selected-space eigensolves.
+- 28 frozen method/budget comparisons.
+- Eleven requested eigenpairs per unique space.
+- Zero Stage-1 eigensolves.
+- Zero retries.
+
+All results were compared against the authenticated finite U_S2 reference.
+
+#### Maximum Excitation-Energy Errors
+
+All errors below are in MHz. Lower is better.
+
+| Budget | Physics F | Energy prefix E | Bare T/D/V |
+|---|---:|---:|---:|
+| 3 | 0.279658 | 0.535358 | 0.279658 |
+| 6 | 0.115900 | 0.528191 | 0.133264 |
+| 10 | 0.070881 | 0.523126 | 0.079541 |
+| 15 | 0.019042 | 0.509421 | 0.028006 |
+
+Physics-informed selection achieved the lowest maximum excitation error at every budget, tying the bare controls at budget 3 because they selected identical spaces.
+
+Under the complete frozen multi-metric evaluation:
+
+- **Versus energy prefix:** IMPROVED at budgets 6, 10, and 15.
+- **Budget 3:** Did not satisfy the centered-state-10 no-harm condition.
+- **Versus bare coupling:** Consistent superiority was NOT established.
+- **Overall verdict:** MIXED_OR_NOT_IMPROVED.
+
+Several bare-coupling comparisons were better on specific carrier-error metrics, despite physics-informed selection having a smaller maximum excitation error.
+
+All physics-selected spaces passed the registered strict finite-parent accuracy thresholds.
+
+Five cancellation flags were observed among spread/reverse-spread controls. None occurred for the physics-informed selections.
+
+Numerical execution results:
+
+- Runtime: 213.313 seconds.
+- Peak sampled RSS: approximately 1.398 GiB.
+- Numerical validation: PASS.
+- Source and output authentication: PASS.
+- Preservation: PASS.
+
+Historical screening costs remain unavailable. No end-to-end computational speedup is claimed.
+
+### 6. Scientific Interpretation
+
+The completed investigation supports three findings:
+
+1. High-rank virtual states can strongly influence the dressed spectrum, even when they are far from the retained energy range.
+2. Physics-informed, noncontiguous retention can produce accurate finite-parent compression while ordinary energy-prefix retention remains substantially less accurate.
+3. More sophisticated physics-informed ranking does not yet demonstrate consistent superiority over simpler bare-coupling selection.
+
+Importantly, attribution capture alone is not proof of spectral accuracy. Work Block 5 supplied the previously missing direct numerical comparison.
+
+The results do NOT demonstrate:
+
+- Convergence of the full asymmetric four-mode Hamiltonian.
+- Convergence in spatial or charge-domain truncation.
+- A general-purpose superior state-selection algorithm.
+- End-to-end computational speedup.
+- A validated high-fidelity asymmetric four-mode gate.
+
+### 7. Illustrated Research Handoff for Thomas
+
+Prepared a comprehensive illustrated report containing:
+
+- Eight vector PDF figures.
+- Eight matching high-resolution PNG figures.
+- Retained-basis convergence diagnostics.
+- Virtual-state attribution and coupling analysis.
+- S1/S2 selector comparisons.
+- Selected-space spectral-accuracy comparisons.
+- Individual-state and carrier-error diagnostics.
+- Cancellation and retained-space diagrams.
+
+Local report:
+
+`docs/gridium-research-update-2026-10/work-blocks-1-5/THOMAS_RESEARCH_UPDATE.md`
+
+Figure index:
+
+`docs/gridium-research-update-2026-10/work-blocks-1-5/README.md`
+
+The handoff package contains 37 new files and has been verified locally.
+
+**Publication status: PREPARED, NOT YET VERIFIED PUBLISHED.**
+
+The official GitHub destination is:
+
+`SciGeek2000/2q_gridium`
+
+Branch:
+
+`four-mode-asym-gridium-tests`
+
+The last verified upstream commit is:
+
+`bce946ece96f1f715a29135a6382efe36e0300f1`
+
+Publication was interrupted by Codex usage limits. Resume only after checking local Git status and preserving unrelated staged changes.
+
+### 8. Next Research Direction
+
+The recommended next scientific experiment is independent finite-parent transfer validation of the unchanged selector against bare-coupling controls.
+
+Before launching:
+
+1. Publish the October 24 illustrated report.
+2. Share findings with Thomas.
+3. Request feedback on the most informative independent parent, parameter point, or shell.
+4. Preregister the transfer experiment with unchanged selection rules.
+5. Obtain new authorization before additional numerical execution.
+
+### 9. Current Research Holds
+
+| Research activity | Status |
+|---|---|
+| Work Blocks 1–5 | COMPLETE |
+| October 24 Thomas handoff | PREPARED, publication pending |
+| Independent selector transfer | PROPOSED |
+| Schur-v2 benchmark execution | HOLD |
+| Asymmetric four-mode gate work | HOLD |
+| Spatial convergence | HOLD |
+
+**Overall scientific verdict: MIXED_OR_NOT_IMPROVED.**
+
+**Current priority: Publish the validated scientific handoff and obtain Thomas's feedback before beginning another experiment.**
+
+## Work Block — 2026-10-25–2026-10-29
+
+Completed: Developed and reviewed inactive k420 native A/B/C integration candidates, verified the frozen ten-case Stage-2 workload and phase-handoff contracts, and exercised memory monitoring, independent watchdogs, telemetry validity/freshness, STOP handling and cleanup with bounded metadata workers. Accelerated full-duration audit tests retained 6,001 snapshots over a virtual 1,500-second budget, with approximately 5.50 MB of journal evidence. Subsequent independent checks exposed journal-integrity and time-of-check/time-of-use defects at finalization, downstream dispatch and terminal publication. Defined Route A around immutable authenticated admission state, coordinated STOP/dispatch transitions and protected publication, but its stronger publisher boundary remains unavailable under the current same-user macOS ownership arrangement; no protected native slice was completed or accepted. Two local memory-admission snapshots failed the unchanged free-memory and availability-proxy gates. Zero new scientific eigensolves were performed.
+
+Next: Find authorized compute resources, establish an appropriate numerical environment and explicitly justified execution trust assumptions, and verify monitoring, admission and provenance before requesting separate authorization to resume the frozen k380 → k400 → k420 convergence experiment. Follow up on Thomas's previously reported Lawrencium access; no current external account/allocation for this k420 run has been verified.
+
+## Stoppage Update 02 — 2026-10-29
+
+The genuine k420 convergence experiment has not started. Its purpose remains to evaluate k380 → k400 → k420 using one new k420 Stage-1 parent and the frozen ten-case Stage-2 workload, followed by actual scientific convergence evaluation. Existing retained-basis convergence remains unresolved; the authenticated k380 finite-parent results do not establish a converged spectrum.
+
+The integration work developed inactive native A/B/C candidates and exercised memory monitoring, watchdogs, telemetry, phase handoffs and cleanup with metadata workers. Accelerated audit tests covered the full virtual 1,500-second budget and retained 6,001 snapshots; this was simulated-time retention evidence, not a live scientific run. Independent checks then demonstrated three acceptance races: journal corruption after verification could permit false successful completion; Stage B could dispatch before corrupted evidence was rejected; and terminal receipt contents could change between verification and publication. Later rejection did not undo an incorrect launch.
+
+Route A was designed around immutable authenticated evidence, coordinated STOP/admission/dispatch transitions and a protected publisher. It was not successfully implemented or accepted. Its stronger publication guarantee requires excluding an uncooperative filesystem writer from authoritative artifacts. The current same-user macOS ownership arrangement does not provide that exclusion, and no separate-principal publisher is provisioned. An atomic rename or read-only descriptor alone does not seal mutable source contents.
+
+The local 18-GiB Mac also failed both admission snapshots. The first observed approximately 62 MiB physically free and a 7.34 GiB availability proxy. The quiet-session check observed 0.801575 GiB physically free and a 7.282257 GiB availability proxy. Frozen requirements remain at least 1 GiB physically free and 12 GiB availability proxy. Both checks failed; pressure percentages were not substituted for those quantities. Current local execution is impractical under the unchanged policy, without establishing that this hardware is universally incapable of the calculation.
+
+There are no new k400/k420 numerical results, no new convergence claim and no new four-mode gate validation. Existing scientific results, checkpoints and failure provenance remain preserved. Engineering tests are not substitutes for scientific convergence evidence. Schur-v2 prelaunch, gate work and spatial convergence remain HOLD.
+
+Recovery now depends on identifying authorized external compute access, establishing the appropriate environment and explicitly justified trust assumptions, and verifying monitoring, admission and provenance. Thomas's earlier Lawrencium offer is a lead; external compute access for this experiment has not yet been verified. Separate authorization is required before real calculations. The next scientific result must come from performing the frozen k420 experiment and reporting its actual convergence behavior to Thomas.
