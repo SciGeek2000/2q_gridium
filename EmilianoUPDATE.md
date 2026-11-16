@@ -668,3 +668,73 @@ Recovery now depends on identifying authorized external compute access, establis
 ![Planned k420 scientific workflow with separate local-memory and protected-publication blockers feeding execution admission, followed by unexecuted Stages A, B and C](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/fig03_k420_execution_roadmap.png)
 
 *Figure 3. Planned scientific workflow. Local memory admission and the unavailable protected native boundary block progress; external compute access remains unverified. Real execution requires separate authorization. The final output must be a tested convergence verdict, not an assumed converged spectrum.* [Source validation](docs/gridium-research-update-2026-10/figures/workblock_2026_10_29/FIGURE_VALIDATION.md#figure-3).
+
+## Work Block — 2026-11-13 — ACTIVE Model and Pathway Readiness
+
+Completed: Reviewed Thomas's ACTIVE four-mode parameter regime and scripts for pathway ranking, cutoff checks, wavefunctions, parity, theta1-conditioned density, asymmetry, and abstract control. The code identifies candidate paths 0→2→3→1, 0→2→10→1, and 0→11→3→1, but their named ACTIVE output artifacts were absent locally. The numerical values in `gridium_params.py` were therefore source-recorded claims, not independently reproduced results. Existing saved four-mode diagnostics were LEGACY and could not establish ACTIVE convergence. Frozen IdealGridium X90/X180 validation exists, but does not demonstrate four-mode gates or a calibrated physical drive.
+
+Next: Reproduce the ACTIVE symmetric and asymmetric default-cutoff static pathway evidence with per-case provenance, state tracking, and saved complex control matrices before any gate optimization. Resolve remaining model and control conventions and retain the gate-work HOLD.
+
+Evidence: `Simulations/Rabi_3Photon/gridium_params.py`, ACTIVE diagnostic scripts, `docs/CONTROL_THEORY.md`, `docs/MULTIMODE_GRIDUM_IMPLEMENTATION_SPEC.md`, and `Figures/Rabi_3Photon/`.
+
+## Work Block — 2026-11-13 — ACTIVE Execution Preflight
+
+Completed: Confirmed the dedicated Python 3.12.11 environment with NumPy 2.2.6, SciPy 1.13.1, and QuTiP 5.2.2. The two default-cutoff ACTIVE cases were not run because available memory was below the 7 GiB planning threshold. A source inspection found that the ranking script called `levels()` before `grid_phi()`, potentially duplicating the parent solve. Changed the call order to obtain the operator first; a lightweight mock verified one parent solve and cached-energy access. No scientific solve was performed.
+
+Next: Establish sufficient resource headroom before resuming the authorized cases. Do not infer results from source comments or transfer LEGACY convergence conclusions to ACTIVE.
+
+Evidence: `research/sandbox/active_pathway_baseline_2026_11_13_preflight/`.
+
+## Work Block — 2026-11-14 — FAST Pilot Aborted by Watchdog
+
+Completed: The first ACTIVE symmetric FAST pilot passed its 4 GiB admission check and launched under an independent watchdog. It stopped after 109 seconds on one macOS memory-pressure warning. The warning was the watchdog's immediate stop condition; the trace does not establish sustained pressure or hardware exhaustion. Peak sampled worker-tree RSS was 1.433 GiB, minimum available memory 3.589 GiB, and swap decreased slightly. No eigenvalues or operators were returned.
+
+Next: Improve memory accounting and use a healthier baseline before proposing another monitored FAST attempt. Preserve the separate 7 GiB DEFAULT admission threshold; do not infer the FAST outcome from this abort.
+
+Evidence: `research/sandbox/active_fast_pilot_2026_11_13_2239/`.
+
+## Work Block — 2026-11-15
+
+### Completed
+
+Transitioned to Thomas's November 13 ACTIVE four-mode regime. The symmetric parameters are EJ=10, EC=0.5, EL=ELK=0.2, EJS=4, ECS=8, eC=2.5 and eP=5.5 (GHz energy conventions). The exploratory control coordinate is `grid_phi = theta3 + theta2/2`; its relationship to the experimental microwave drive remains unverified.
+
+**Numerical representation and cutoff checks.** The initial symmetric FAST calculation completed both solver stages but FAILED Stage-1 orthogonality acceptance: maximum overlap 4.113e-7 against 1e-8, dominated by pair 10/11 separated by 4.256 Hz, despite a maximum eigenpair residual of 1.392e-12 GHz. Consistent symmetric orthonormalization and Rayleigh–Ritz reconstruction, independently checked with a generalized-metric formulation, resolved the retained-space representation problem. The original failed result remains FAILED; correcting its representation does not establish cutoff convergence.
+
+Fourth-mode refinement reached N4=12. At fixed k=120, N4=10→12 changed candidate carrier frequencies by at most approximately 1.095 kHz. Stage-1 retention remains unresolved: maximum candidate-carrier shifts were approximately 1.565 MHz for k=120→160 and 157.580 kHz for k=160→180. These comparisons do not establish physical convergence or N4 convergence at k=180. Local memory-admission failures and watchdog stops were preserved; later admitted runs demonstrated that bounded calculations can complete on the local machine without relaxing safeguards. One completed retention run retained an operational watchdog-finalization failure, separately from its numerical checks.
+
+**Control models and mechanism.** Built and numerically validated an exact lab-frame simulator using the saved full complex 16-state Hamiltonian and control matrix. Early simultaneous three-tone square pulses populated intermediate states strongly but transferred little logical population. Controlled duration, tone-ablation and phase comparisons supported mirror-related excitation and strongly phase-sensitive coherent dynamics, without uniquely identifying every interference route. The six-state reduction failed strict complex-amplitude validation. Adding states 8 and 9 produced an eight-state surrogate that passed both accepted reference-pulse comparisons, but it later failed the strict complex-amplitude test for the stronger candidate. The rotating-wave approximation also FAILED its registered tests. Gate-performance results therefore use the exact full 16-state lab-frame calculation.
+
+**Coherent-return pulse.** A mirror-balanced three-tone design motivated by the ideal bright-chain coupling ratio `sqrt(3):2:sqrt(3)` achieved coherent endpoint return in the full 16-state model. The first 306.186 ns square candidate produced approximately 96% logical transfer, 3% endpoint leakage and 94.3927% leakage-inclusive lab-frame X fidelity. Replacing the square envelope with `g(t) = 2 sin²(pi*t/T)`, preserving duration, carriers, phases, amplitude coefficients and integrated nominal pulse area, improved all principal gate metrics.
+
+**Best accepted pulse: Task 3O-J**, on the symmetric ACTIVE FAST model with k=180, N4=12 and 16 final states:
+
+| Quantity | Accepted numerical result |
+|---|---:|
+| Duration | 306.1862178478972 ns |
+| Leakage-inclusive lab-frame X fidelity (primary) | 0.963914573 |
+| Bare-energy interaction-frame fidelity (separate convention) | approximately 0.98403368 |
+| Logical transfer, both directions | approximately 98.3339% |
+| Endpoint leakage from logical input 0 / 1 | 1.4196% / 1.4273% |
+| Worst endpoint leakage over arbitrary logical superpositions | 2.245024% |
+| Sampled transient leakage | approximately 75% |
+
+Fidelities use the fixed X=Rx(pi) target in the saved eigenstate gauge, without fitting logical phases or normalizing away leakage. The higher interaction-frame fidelity is not the primary lab-frame gate fidelity. Large transient occupation followed by low endpoint leakage demonstrates substantial, incomplete coherent return within this numerical model.
+
+**Unsuccessful refinement and bounded robustness.** A fixed high-carrier detuning of −84.9353 kHz worsened performance and increased logical-input imbalance. The bounded optimizer attempted six evaluations: five completed and passed numerical checks; the sixth stopped under memory-pressure safeguards. No completed feasible optimization trial improved Task 3O-J. The search was incomplete, did not explore all control coordinates and establishes no local or global optimum.
+
+After memory recovery, all six independent full 16-state robustness cases passed numerical acceptance: common amplitude ±0.5%, middle amplitude ±0.5%, and high-carrier frequency ±10 kHz. Worst observed lab-frame fidelity was 0.963686411, a maximum decrease of 0.000228162 (approximately 0.022816 percentage points). Maximum basis-input endpoint leakage was 1.629964%; maximum arbitrary-logical-input leakage was 2.319230%. Common amplitude scaling caused the largest fidelity loss; high-carrier offsets caused the largest transfer imbalance and leakage redistribution. These results establish limited numerical control robustness over the tested intervals, not general experimental tolerances. A small gain in one robustness sample does not replace Task 3O-J as the accepted reference pulse.
+
+**Scientific limits.** The 96.39% result applies to the current symmetric ACTIVE 16-state numerical model with exploratory `grid_phi` control. Stage-1 retention, full spatial-basis convergence, the physical microwave-drive operator and calibration, model-parameter uncertainty, asymmetric-device gate behavior, and experimental decoherence/hardware errors remain unresolved. This is not an experimentally validated gate or a prediction of achievable physical-device fidelity. Historical LEGACY convergence results and HOLD decisions are preserved and must not be transferred to ACTIVE.
+
+Supporting evidence is saved **locally**, not published by this log-only update, under `research/sandbox/`: `active_stage1_diagnosis_2026_11_15_3c/`, `active_retained_ritz_2026_11_15_3d/`, `active_generalized_metric_2026_11_15_3e/`, `active_N4_tail_2026_11_15_3h/`, `active_retention_2026_11_15_3l/`, `active_driven_simulator_2026_11_15_3oa/`, `active_six_state_design_2026_11_15_3oh/`, `active_eight_state_validation_2026_11_15_3oh2/`, `active_return_design_2026_11_15_3oh3/`, `active_full16_candidate_2026_11_15_3oi/`, `active_smooth_envelope_2026_11_15_3oj/`, `active_high_detuning_2026_11_15_3ok/`, `active_bounded_optimization_2026_11_15_3ol/` and `active_robustness_retry_2026_11_15_3om_r1/`. These directories retain exact configurations, numerical arrays, source hashes, acceptance decisions and resource records.
+
+### Next
+
+Proposed, **not executed**: test the identical accepted Task 3O-J pulse on the existing k=160 and k=180 parent models at N4=12, with consistent eigenstate tracking and gauge conventions. This is a retained-basis sensitivity test, not proof of convergence. Afterward, prioritize model convergence and identification of the physical drive operator before further optimization or claims about asymmetric devices. No Task 3O-N calculation was launched as part of closing this work block.
+
+### Questions for Thomas
+
+1. Does `grid_phi = theta3 + theta2/2` correspond to the intended experimental microwave-control coordinate, or is a different physical drive operator required?
+2. What frequency, coupling and logical-phase accuracy should we require for a roughly 306 ns gate, given the unresolved retained-basis sensitivity?
+3. Should we prioritize the existing k=160/180 fixed-pulse comparison or pursue larger-parent and spatial-convergence studies using Lawrencium?
