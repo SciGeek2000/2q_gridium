@@ -753,3 +753,17 @@ The N2=N3=71 spatial checkpoint was not launched: memory feasibility under the u
 
 1. Can we use Lawrencium for the N=71 spatial-convergence calculation while preserving the full solver diagnostics?
 2. Is `grid_phi = theta3 + theta2/2` the intended physical microwave-control coordinate, and what numerical error targets should govern gate validation?
+
+### Note for Thomas — November 17, 2026 | Friday Meeting
+
+**Current computational limitation:** Our local Stage-1 solver has an unchanged **2.5 GiB process-memory ceiling**. The ACTIVE N=61 calculation reached 1.731 GiB sampled RSS, while the proposed N=71 calculation has estimated requirements of 2.529–2.946 GiB depending on memory-accounting assumptions. These are estimates, not measured N=71 requirements. We have not established enough headroom to execute safely.
+
+**What we need to simulate:** We need to compare the ACTIVE symmetric four-mode model at N2=N3=61 versus 71, keeping k=280, N4=12, 40 final levels, physical parameters, spatial domains and the three-tone pulse unchanged. This will test how spatial resolution affects energy levels, control couplings, logical gate fidelity and leakage. Our current 96.46% simulated X fidelity is not yet spatially converged.
+
+**Why external computing is needed:** LU factorization and diagnostic extraction create substantial simultaneous memory allocations. We improved object cleanup without changing numerical results, but the dominant memory peak remains. Running this experiment on Lawrencium would let us evaluate spatial convergence with an appropriately provisioned memory allocation, once the ACTIVE runner and execution environment are validated.
+
+**Question for Friday:** Could we use your Lawrencium allocation for this simulation? What access, computing resources, software environment and job-submission procedure would we need?
+
+An ACTIVE-71 handoff specification has been prepared locally, but it is not yet ready for execution.
+
+---
