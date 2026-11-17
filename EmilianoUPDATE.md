@@ -738,3 +738,18 @@ Proposed, **not executed**: test the identical accepted Task 3O-J pulse on the e
 1. Does `grid_phi = theta3 + theta2/2` correspond to the intended experimental microwave-control coordinate, or is a different physical drive operator required?
 2. What frequency, coupling and logical-phase accuracy should we require for a roughly 306 ns gate, given the unresolved retained-basis sensitivity?
 3. Should we prioritize the existing k=160/180 fixed-pulse comparison or pursue larger-parent and spatial-convergence studies using Lawrencium?
+
+## Work Block — 2026-11-16
+
+**Completed:** Extended fixed-pulse ACTIVE symmetric four-mode validation through Stage-1 k=280 and 40 final states. The unchanged 306.186 ns smooth three-tone `grid_phi` pulse retains coherent return after approximately 75% transient leakage. At k=280, N2=N3=61, N4=12 and 40 final levels, leakage-inclusive lab-frame X fidelity is **0.964583652**, logical transfer is approximately **98.406%**, and worst-case superposition leakage is **2.203957%**.
+
+Final-level truncation proved important: expanding 16→32 levels reversed the apparent k=240→260 fidelity trend. At 40 levels, k=260→280 changes fidelity by **+0.000116962**; at k=280, 32→40 changes it by **−0.000014002**. The N4=12→14 check at k=240 produced only a **4.36×10⁻⁷** fidelity change. State, parity, gauge and cluster checks supported the accepted calculations, but carrier shifts remain around **37 kHz** and sensitive doublets fluctuate. **Convergence is not established.**
+
+The N2=N3=71 spatial checkpoint was not launched: memory feasibility under the unchanged **2.5 GiB RSS ceiling** was unproven. Source inspection identified overlapping SuperLU factor-export allocations. A sandbox prototype confirmed that `lu.nnz` does not reproduce the required exact export-derived L/U diagnostics. No production memory modification was accepted.
+
+**Next:** Validate a diagnostic-preserving LU lifecycle improvement or use appropriately provisioned external compute for spatial convergence. Retained-basis and spatial convergence, physical microwave-drive calibration, asymmetry and decoherence remain unresolved. Evidence is retained locally under `research/sandbox/`, not included in this log-only commit.
+
+### Questions for Thomas
+
+1. Can we use Lawrencium for the N=71 spatial-convergence calculation while preserving the full solver diagnostics?
+2. Is `grid_phi = theta3 + theta2/2` the intended physical microwave-control coordinate, and what numerical error targets should govern gate validation?
