@@ -767,3 +767,18 @@ The N2=N3=71 spatial checkpoint was not launched: memory feasibility under the u
 An ACTIVE-71 handoff specification has been prepared locally, but it is not yet ready for execution.
 
 ---
+
+## Work Block — 2026-11-17
+
+**Completed:** Continued validating the ACTIVE symmetric four-mode three-tone X gate at k=280, N4=12 and 40 final levels. The accepted baseline has **96.4584% leakage-inclusive lab-frame X fidelity** and **2.204% worst-case logical leakage**. Tone-ablation tests confirmed that all three tones are necessary for the observed logical transfer with the unchanged pulse; coherent return persists after approximately 75% transient leakage.
+
+Middle-tone phase perturbations of ±0.10 rad reversed logical-input transfer imbalance and increased worst-case leakage to approximately **4.39%**. Increasing middle-tone amplitude by 1% modestly improved fidelity to **96.4730%**, with balanced transfer. The planned −1% test did not run: available memory was **4.845 GiB**, below the unchanged **5 GiB admission minimum**. No optimum is established.
+
+Validated a narrow LU memory-lifecycle improvement with 15 passing regression tests and exact diagnostic preservation. The dominant factor-export memory peak remains unresolved. ACTIVE N=71 spatial convergence is still blocked locally under the **2.5 GiB process-RSS ceiling**. Prepared a reproducible external-compute handoff for Thomas's review, **not yet ready for execution**. Stage-1 and spatial convergence, physical drive calibration and asymmetric-device behavior remain unresolved.
+
+**Next:** After restoring memory headroom, complete the pending 0.99× middle-amplitude test. Discuss spatial-convergence priorities and Lawrencium access with Thomas on Friday.
+
+### Questions for Thomas
+
+1. Does the observed three-tone coherent-return mechanism align with the intended physical control scheme, and is `grid_phi` the appropriate microwave-drive operator?
+2. What numerical accuracy should we require for gate validation before proceeding toward asymmetric-device control?
