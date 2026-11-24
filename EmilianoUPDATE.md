@@ -782,3 +782,18 @@ Validated a narrow LU memory-lifecycle improvement with 15 passing regression te
 
 1. Does the observed three-tone coherent-return mechanism align with the intended physical control scheme, and is `grid_phi` the appropriate microwave-drive operator?
 2. What numerical accuracy should we require for gate validation before proceeding toward asymmetric-device control?
+
+## Work Block — 2026-11-23
+
+**Completed:** Extended ACTIVE symmetric four-mode gate validation using the saved k=260/280 parents. At 40 final levels, increasing middle-tone amplitude by 1% improved lab-frame X fidelity by **0.0001510** (k=260) and **0.0001464** (k=280). The amplitude-response slopes and curvatures agreed closely, with changes concentrated in intermediate states 2, 3, 10 and 11. These remain finite-model results, not optimized or converged physical-gate predictions.
+
+**Major finding:** Final-level extension exposed a significant omitted leakage channel. At k=280, increasing from 40→48 final levels reduced lab X fidelity from **0.964583652 to 0.953825128** and increased worst-case logical leakage from **2.204% to 4.432%**. Extending 48→56 levels changed fidelity by only **+1.06×10⁻⁶**, confirming persistence through that extension, without proving convergence. Newly included state 42 retains approximately **1.05% endpoint population**. The parity-allowed 11↔42 coupling has high-tone detuning **−0.104810 MHz** and complex matrix element **−0.182957−0.175952i**. This is a plausible near-resonant leakage route, not yet causally isolated.
+
+The coherent-return mechanism persists, but **40 levels are inadequate for quantitative control-improvement claims**. Stage-1 and spatial convergence, the physical microwave-drive mapping and asymmetric-device performance remain unresolved. Evidence is saved locally under `research/sandbox/`.
+
+**Next:** Investigate the 11↔42 leakage mechanism using one bounded, artificial high-tone coupling-suppression diagnostic at 56 levels. This experiment is **proposed only and was NOT executed on November 23**. Establish sufficient model convergence before further pulse optimization.
+
+### Questions for Thomas
+
+1. Should we prioritize validating this newly identified high-energy leakage channel and drive-aware state selection before further gate optimization?
+2. Does the abstract `grid_phi` drive adequately represent the intended microwave-control mechanism, particularly given possible omitted circuit parasitics?
