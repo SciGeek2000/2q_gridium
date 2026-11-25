@@ -797,3 +797,21 @@ The coherent-return mechanism persists, but **40 levels are inadequate for quant
 
 1. Should we prioritize validating this newly identified high-energy leakage channel and drive-aware state selection before further gate optimization?
 2. Does the abstract `grid_phi` drive adequately represent the intended microwave-control mechanism, particularly given possible omitted circuit parasitics?
+
+## Work Block — 2026-11-24
+
+**Continued November 25, 2026.**
+
+**Completed:** Investigated the ACTIVE symmetric 56-level Gridium three-tone gate. An artificial diagnostic suppressing the high-tone 11↔42 Hermitian coupling recovered 95.60% of the additional fidelity loss introduced by extending from 40 to 56 levels. This strongly supports the coupling as a dominant contributor to higher-state leakage but does not constitute a physical gate improvement.
+
+Physical single-carrier ±1 MHz shifts reduced lab-frame X fidelity from 95.38% to approximately 31.7–32.0%, with severe loss of coherent return. Two independent compensated carrier combinations restored fidelity to approximately 93.3–93.4%, supporting cooperative frequency matching while demonstrating sensitivity to individual detunings and leakage structure.
+
+At 56 levels, a +0.10 rad middle-tone phase perturbation reduced X fidelity from 0.953826 to 0.944510 and produced asymmetric logical transfer, consistent in direction with the earlier 40-level response.
+
+**Conclusion:** The protocol exhibits a dominant higher-state leakage coupling, strong collective frequency sensitivity and phase-dependent coherent return. Full numerical convergence and experimentally calibrated control remain unestablished.
+
+**Next:** Test middle-tone phase −0.10 rad at 56 levels. Not executed during this block.
+
+**Detailed evidence:** [Scientific report, verified figures and numerical comparisons](research/reports/2026-11-24_25_three_tone_control/REPORT.md).
+
+**Status:** CLOSED by MAIN CHAT; November 24 work block continued into November 25.

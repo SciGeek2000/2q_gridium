@@ -1,0 +1,146 @@
+{
+  "status": "Authenticated before publication",
+  "sources": [
+    {
+      "source": "research/sandbox/active_channel_causal_2026_11_24_3oat/comparison.json",
+      "source_sha256": "6e31cfdc641d6b455b7e9f55685db92bdf279e89ee6a547e4b012a367f033a17",
+      "published": "evidence/3OAT_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_channel_causal_2026_11_24_3oat/REPORT.md",
+      "source_sha256": "5b6b65163bdebadf9a8b43b6b219a0912c4af2d9d878ad31dfa18bfb6f97badd",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_channel_causal_2026_11_24_3oat/manifest.json",
+      "source_sha256": "624956eba64d7ce4c5dae210278f970f968c4bf5de1752fc120bc323262460de",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_physical_high_detuning_2026_11_24_3oau/comparison.json",
+      "source_sha256": "b0d38bc231d321d5c8d748728bce493dcc2cb213578923c3d11a731a82d44920",
+      "published": "evidence/3OAU_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_physical_high_detuning_2026_11_24_3oau/REPORT.md",
+      "source_sha256": "a57a20dfc48a186a1884a3976573830490f35e062653c88a244b079fe627ebda",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_physical_high_detuning_2026_11_24_3oau/manifest.json",
+      "source_sha256": "c9b4e0ca34b5008fc28a06c963ec43d222ccf3583512355deb48faba1094ced8",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_frequency_relation_2026_11_24_3oav/comparison.json",
+      "source_sha256": "64e23e77450687a1a1d62ade703e0817c9356d0429495c9563bc2399cb6bcb4a",
+      "published": "evidence/3OAV_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_frequency_relation_2026_11_24_3oav/REPORT.md",
+      "source_sha256": "697d862e75c9a9552c027d563f614f94f815f5b1151fbd3ad8004b9188871534",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_frequency_relation_2026_11_24_3oav/manifest.json",
+      "source_sha256": "37608aceccdba206909aec3ff4273b48d0f5ac1c4f8a5ee8ee3ab2749cfed7f2",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_middle_only_2026_11_24_3oaw/comparison.json",
+      "source_sha256": "56c4d0b815dc1fb798355c3c7c64d9d2f181142c3640bdeed318a8dd9909843a",
+      "published": "evidence/3OAW_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_middle_only_2026_11_24_3oaw/REPORT.md",
+      "source_sha256": "4d78b9235e9210abf073972bd1709bbd7dc69f1058e4d3ec756e84c1915e2f06",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_middle_only_2026_11_24_3oaw/manifest.json",
+      "source_sha256": "19747b36ed2060f66a9d106f7e03dc707afe2efc1fbd43344e92d95ac21c4a50",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_low_compensation_2026_11_25_3oax/comparison.json",
+      "source_sha256": "e49a89518dc9421ad016368c66d8317f03c4511454692d224a1496290fcc1d12",
+      "published": "evidence/3OAX_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_low_compensation_2026_11_25_3oax/REPORT.md",
+      "source_sha256": "f4b42288cfce5e3391ba2be29732af75ea9baf80daf2682e17d040b74d22eea8",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_low_compensation_2026_11_25_3oax/manifest.json",
+      "source_sha256": "29e2ac358bd0b3d453aaf9bae405e657a074c2dc9f5bd87a65d973c4a04ae0a1",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_low_only_retry_2026_11_25_3oayr1/comparison.json",
+      "source_sha256": "4fd02ab9ac015c79689d8f98bad1c2c5de3052939051fb004d1bf5451f8e5bba",
+      "published": "evidence/3OAYR1_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_low_only_retry_2026_11_25_3oayr1/REPORT.md",
+      "source_sha256": "9b35582501afe05b9151965a5debf74f7fb81378f3a8dda4a7fe2420252a5a3f",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_low_only_retry_2026_11_25_3oayr1/manifest.json",
+      "source_sha256": "df3ff5f4b7de9c9d99afaf726819da7396eed2944cfa05091c4edfd8bba09450",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_middle_phase56_2026_11_25_3oaz/comparison.json",
+      "source_sha256": "2d1416e6403e045e1b0947594b6338ed8b9c796bd49322f2d6bd3d61a9806ee5",
+      "published": "evidence/3OAZ_numerical_comparison.json",
+      "note": "Numerical fields unchanged; local input-path inventory omitted."
+    },
+    {
+      "source": "research/sandbox/active_middle_phase56_2026_11_25_3oaz/REPORT.md",
+      "source_sha256": "b255bb4dc859891c6d747c437858d6eca52ffb95220085ce0046fd0f72c275a5",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_middle_phase56_2026_11_25_3oaz/manifest.json",
+      "source_sha256": "0fa2702b080f65cd4a0fc8d10562cc7da1b3060f40c283a660a9d9cf62a1ceaa",
+      "note": "Authenticated local source; original preserved, not copied."
+    },
+    {
+      "source": "research/sandbox/active_channel_causal_2026_11_24_3oat/comparison.png",
+      "source_sha256": "01caa507328fe383d7370c95ba4a55e52c84e5ff7b77a37607947e3a11be2f29",
+      "published": "figures/01_artificial_channel_intervention.png",
+      "note": "Original AT: artificial high-tone Hermitian pair removal, not a physical improvement."
+    },
+    {
+      "source": "research/sandbox/active_middle_phase56_2026_11_25_3oaz/comparison.png",
+      "source_sha256": "5a1c746e8bdadeec00ad7cae97c4779850e5a262b0301c3ebc03f8c06a300e43",
+      "published": "figures/04_phase_response_40_vs56.png",
+      "note": "Original AZ: fixed-frequency phase response at 40 and 56 levels."
+    },
+    {
+      "source": "research/sandbox/active_low_only_retry_2026_11_25_3oayr1/intermediates.png",
+      "source_sha256": "3cd4bcde546e13dbaccfa32cbcd8c5c3bde86fef54b269bcfd620c103252e91e",
+      "published": "figures/05_intermediate_return_trajectories.png",
+      "note": "Original AY: baseline/AW/AY/AX sampled populations of states 2,3,10."
+    }
+  ],
+  "source_manifest_hashes": {
+    "active_channel_causal_2026_11_24_3oat": "624956eba64d7ce4c5dae210278f970f968c4bf5de1752fc120bc323262460de",
+    "active_physical_high_detuning_2026_11_24_3oau": "c9b4e0ca34b5008fc28a06c963ec43d222ccf3583512355deb48faba1094ced8",
+    "active_frequency_relation_2026_11_24_3oav": "37608aceccdba206909aec3ff4273b48d0f5ac1c4f8a5ee8ee3ab2749cfed7f2",
+    "active_middle_only_2026_11_24_3oaw": "19747b36ed2060f66a9d106f7e03dc707afe2efc1fbd43344e92d95ac21c4a50",
+    "active_low_compensation_2026_11_25_3oax": "29e2ac358bd0b3d453aaf9bae405e657a074c2dc9f5bd87a65d973c4a04ae0a1",
+    "active_low_only_retry_2026_11_25_3oayr1": "df3ff5f4b7de9c9d99afaf726819da7396eed2944cfa05091c4edfd8bba09450",
+    "active_middle_phase56_2026_11_25_3oaz": "0fa2702b080f65cd4a0fc8d10562cc7da1b3060f40c283a660a9d9cf62a1ceaa"
+  },
+  "work_block": "November24, continued November25; CLOSED by MAIN CHAT",
+  "new_research_executed": false
+}
